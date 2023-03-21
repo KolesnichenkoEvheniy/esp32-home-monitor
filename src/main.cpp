@@ -2,14 +2,14 @@
 #include "DHTesp.h"
 #include <WiFi.h>
 #include <PromLokiTransport.h>
-#include <WiFiClientSecure.h>
+// #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
-#include <UniversalTelegramBot.h>
+// #include <UniversalTelegramBot.h>
 
 #include "certificates.h"
 #include "config.h"
 
-WiFiClientSecure secured_client;
+// WiFiClientSecure secured_client;
 // DHT Sensor
 DHTesp dht;
 
@@ -29,7 +29,7 @@ TimeSeries ts4(5, "wifi_rssi",  "{monitoring_type=\"room_comfort\",board_type=\"
 
 // telegram setup
 
-UniversalTelegramBot bot(TG_BOT_TOKEN, secured_client);
+// UniversalTelegramBot bot(TG_BOT_TOKEN, secured_client);
 
 int loopCounter = 0;
 bool showDebugLight = true;
@@ -37,7 +37,7 @@ bool showDebugLight = true;
 void setupWiFi() {
   Serial.println("Connecting to wifi ...'");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  WiFi.mode(WIFI_STA);
+  // WiFi.mode(WIFI_STA);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -61,17 +61,17 @@ void setupClient() {
   }
 
   // Setup wifi
-  //WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA);
   //wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
   
   Serial.println("Configuring prometheus transport...");
   // Configure and start the transport layer
   transport.setUseTls(true);
   transport.setCerts(grafanaCert, strlen(grafanaCert));
-  transport.setNtpServer("time.google.com");
-  //transport.setWifiSsid(WIFI_SSID);
-  //transport.setWifiPass(WIFI_PASSWORD);
-  // transport.setDebug(Serial);  // Remove this line to disable debug logging of the client.
+  // transport.setNtpServer("time.google.com");
+  // transport.setWifiSsid(WIFI_SSID);
+  // transport.setWifiPass(WIFI_PASSWORD);
+  transport.setDebug(Serial);  // Remove this line to disable debug logging of the client.
   if (!transport.begin()) {
       Serial.println(transport.errmsg);
       while (true) {};
@@ -80,7 +80,7 @@ void setupClient() {
   Serial.println("Configuring prometheus client...");
   // Configure the client
   client.setUrl(GC_PROM_URL);
-  client.setPath(GC_PROM_PATH);
+  client.setPath((char*)GC_PROM_PATH);
   client.setPort(GC_PORT);
   client.setUser(GC_PROM_USER);
   client.setPass(GC_PROM_PASS);
@@ -149,7 +149,7 @@ void Task2code( void * pvParameters ){
       goto flag; //If there is an error, go back to the flag and re-read the data
     }
 
-    float tempratureCorrection = 0;//1.4;
+    float tempratureCorrection = 1.4;
 
     float hum = newValues.humidity;
     float cels = newValues.temperature + tempratureCorrection;
@@ -171,6 +171,7 @@ void Task2code( void * pvParameters ){
       if (!res == PromClient::SendResult::SUCCESS) {
           Serial.println(client.errmsg);
       }
+      Serial.println("Samples sent.");
       
       // Reset batches after a succesful send.
       ts1.resetSamples();
@@ -213,13 +214,13 @@ void setup() {
   // Start the serial output at 115,200 baud
   Serial.begin(115200);
 
-  secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  // secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 
   // Set up client
   setupWiFi();
   setupClient();
 
-  bot.sendMessage(TG_CHAT_ID, "ESP started. WIFI connected. IP: " + WiFi.localIP().toString(), "");
+  // bot.sendMessage(TG_CHAT_ID, "ESP started. WIFI connected. IP: " + WiFi.localIP().toString(), "");
 
   // Start the DHT sensor
   dht.setup(PIN_DHT, DHTesp::DHT11);
@@ -231,7 +232,11 @@ void setup() {
   xTaskCreatePinnedToCore(Task1code, "Task1", 10000, NULL, 1, NULL,  1); 
   delay(500); 
 
-  xTaskCreatePinnedToCore(Task2code, "Task1", 10000, NULL, 1, NULL,  0); 
+  xTaskCreatePinnedToCore(Task2code, "Task1", 10000, NULL, 1, NULL,  0);
+
+  Serial.print("Free Mem After Setup: ");
+  Serial.println(freeMemory());
+ 
   delay(500); 
 }
 
