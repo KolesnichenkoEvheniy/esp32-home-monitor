@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "DHTesp.h"
 #include <WiFi.h>
-#include <PromLokiTransport.h>
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
 // #include <UniversalTelegramBot.h>
@@ -103,34 +102,34 @@ void setupClient() {
 void blink(int count = 2) {
   for(int i = 0; i < count; i++) {
     digitalWrite(PIN_LED, LOW);
-    delay(200);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
     digitalWrite(PIN_LED, HIGH);
-    delay(200);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
     digitalWrite(PIN_LED, LOW);
   }
 }
 
-void Task1code( void * pvParameters ){
+void ListenButton( void * pvParameters ){
   Serial.print("Task1 running on core ");
   Serial.println(xPortGetCoreID());
   for(;;){
     if (digitalRead(PIN_BUTTON) == LOW) {
-      delay(20);
+      vTaskDelay(20 / portTICK_PERIOD_MS);
       if (digitalRead(PIN_BUTTON) == LOW) {
         showDebugLight = !showDebugLight;
         Serial.println("The button is released, state: " + String(showDebugLight));
         blink((showDebugLight == true) ? 3 : 2);
       }
       while (digitalRead(PIN_BUTTON) == LOW);
-      delay(20);
+      vTaskDelay(20 / portTICK_PERIOD_MS);
       while (digitalRead(PIN_BUTTON) == LOW);
     }
 
-    delay(500);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
-void Task2code( void * pvParameters ){
+void PerformMeasurements( void * pvParameters ){
   Serial.print("Task2 running on core ");
   Serial.println(xPortGetCoreID());
 
@@ -146,6 +145,7 @@ void Task2code( void * pvParameters ){
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
     Serial.println("DHT STATUS: "+String(dht.getStatus()));
     if (dht.getStatus() != 0) { //Judge if the correct value is read
+      vTaskDelay(100 / portTICK_PERIOD_MS);
       goto flag; //If there is an error, go back to the flag and re-read the data
     }
 
@@ -200,11 +200,11 @@ void Task2code( void * pvParameters ){
     Serial.println("Show light? " + String(showDebugLight));
 
     if(showDebugLight == true) {
-      delay(300);
+      vTaskDelay(300 / portTICK_PERIOD_MS);
     }
     digitalWrite(PIN_LED, LOW);
     // wait INTERVAL seconds and then do it again
-    delay(INTERVAL * 1000);
+    vTaskDelay(INTERVAL * 1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -229,10 +229,8 @@ void setup() {
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
-  xTaskCreatePinnedToCore(Task1code, "Task1", 10000, NULL, 1, NULL,  1); 
-  delay(500); 
-
-  xTaskCreatePinnedToCore(Task2code, "Task1", 10000, NULL, 1, NULL,  0);
+  xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
+  xTaskCreate(PerformMeasurements, "PerformMeasurements", 10000, NULL, 2, NULL);
 
   Serial.print("Free Mem After Setup: ");
   Serial.println(freeMemory());
