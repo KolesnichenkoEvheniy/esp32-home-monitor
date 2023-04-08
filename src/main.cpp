@@ -44,7 +44,7 @@ TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"e
 // UniversalTelegramBot bot(TG_BOT_TOKEN, secured_client);
 
 int loopCounter = 0;
-bool showDebugLight = true;
+bool showDebugLight = false;
 
 void setupWiFi() {
   Serial.println("Connecting to wifi ...'");
@@ -306,7 +306,7 @@ void setup() {
 
   #ifdef LCD_ENABLED
   lcd.init();
-  lcd.backlight();
+  lcd.noBacklight();
   #endif // LCD_ENABLED
 
   Serial.println("CCS811 Reading CO2 and VOC");
