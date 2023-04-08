@@ -4,7 +4,7 @@
 #include <WiFi.h>
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
-#include <SparkFunCCS811.h>
+#include <Adafruit_CCS811.h>
 // #include <UniversalTelegramBot.h>
 
 #include "certificates.h"
@@ -15,7 +15,7 @@
 DHTesp dht;
 
 // co2 sensoor
-CCS811 mySensor(CCS811_ADDR);
+Adafruit_CCS811 ccs;
 
 // uint8_t SCL_PIN = 22;
 // uint8_t SDA_PIN = 21;
@@ -156,7 +156,7 @@ void PerformMeasurements( void * pvParameters ){
 
     // Read temperature and humidity
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
-    Serial.println("DHT STATUS: "+String(dht.getStatus()));
+    //Serial.println("DHT STATUS: "+String(dht.getStatus()));
     if (dht.getStatus() != 0) { //Judge if the correct value is read
       vTaskDelay(100 / portTICK_PERIOD_MS);
       goto flag; //If there is an error, go back to the flag and re-read the data
@@ -171,13 +171,12 @@ void PerformMeasurements( void * pvParameters ){
     // Compute heat index in Celsius (isFahreheit = false)
     float hic = dht.computeHeatIndex(cels, hum, false);
 
-    if(mySensor.dataAvailable()){
-      mySensor.setEnvironmentalData(hum, cels);
-      mySensor.readAlgorithmResults();
-
-      eCO2 = mySensor.getCO2();
-      tvoc = mySensor.getTVOC();
-      //Serial.println("CO2: "+String(mySensor.getCO2())+"ppm, TVOC: "+String(mySensor.getTVOC())+"ppb");
+    if(ccs.available()){
+      ccs.setEnvironmentalData(hum, cels);
+      uint8_t sData = ccs.readData();
+      Serial.println("S data:" + String(sData));
+      eCO2 = ccs.geteCO2();
+      tvoc = ccs.getTVOC();
     }
 
     // Check if any reads failed and exit early (to try again).
@@ -263,9 +262,11 @@ void setup() {
 
   Serial.println("CCS811 Reading CO2 and VOC");
   Wire.begin();
-  if (mySensor.begin() == false) {
-    Serial.print("CCS811 error. Please check wiring. Freezing...");
-    while (1);
+  if(!ccs.begin(CCS811_ADDR)){
+    Serial.println("Failed to start sensor! Please check your wiring.");
+    while(1);
+  } else {
+    Serial.println("CCS811 started");
   }
   
   Serial.println("Creating tasks");
