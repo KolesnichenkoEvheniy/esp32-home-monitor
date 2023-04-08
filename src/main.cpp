@@ -1,8 +1,10 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include "DHTesp.h"
 #include <WiFi.h>
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
+#include <SparkFunCCS811.h>
 // #include <UniversalTelegramBot.h>
 
 #include "certificates.h"
@@ -12,12 +14,18 @@
 // DHT Sensor
 DHTesp dht;
 
+// co2 sensoor
+CCS811 mySensor(CCS811_ADDR);
+
+// uint8_t SCL_PIN = 22;
+// uint8_t SDA_PIN = 21;
+
 // Prometheus client and transport
 PromLokiTransport transport;
 PromClient client(transport);
 
 // Create a write request for 4 series (when changing update buffers used to serialize the data)
-WriteRequest req(4, 2048);
+WriteRequest req(6, 512 * 6);
 
 // Define a TimeSeries which can hold up to 5 samples, has a name of `temperature/humidity/...` and uses the above labels of which there are 2
 TimeSeries ts1(5, "temperature_celsius", "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
@@ -25,6 +33,9 @@ TimeSeries ts2(5, "humidity_percent",  "{monitoring_type=\"room_comfort\",board_
 TimeSeries ts3(5, "heat_index_celsius",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 
 TimeSeries ts4(5, "wifi_rssi",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
+
+TimeSeries ts5(5, "eco2_ppm",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
+TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 
 // telegram setup
 
@@ -67,7 +78,7 @@ void setupClient() {
   // Configure and start the transport layer
   transport.setUseTls(true);
   transport.setCerts(grafanaCert, strlen(grafanaCert));
-  // transport.setNtpServer("time.google.com");
+  transport.setNtpServer((char*)"time.google.com");
   // transport.setWifiSsid(WIFI_SSID);
   // transport.setWifiPass(WIFI_PASSWORD);
   transport.setDebug(Serial);  // Remove this line to disable debug logging of the client.
@@ -94,6 +105,8 @@ void setupClient() {
   req.addTimeSeries(ts2);
   req.addTimeSeries(ts3);
   req.addTimeSeries(ts4);
+  req.addTimeSeries(ts5);
+  req.addTimeSeries(ts6);
   // req.setDebug(Serial);  // Remove this line to disable debug logging of the write request serialization and compression.
 
   Serial.println("Prometheus transport configured successfully.");
@@ -149,19 +162,29 @@ void PerformMeasurements( void * pvParameters ){
       goto flag; //If there is an error, go back to the flag and re-read the data
     }
 
-    float tempratureCorrection = 1.4;
+    float tempratureCorrection = 0;//1.4;
 
     float hum = newValues.humidity;
     float cels = newValues.temperature + tempratureCorrection;
-    
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(hum) || isnan(cels)) {
-      Serial.println(F("Failed to read from DHT sensor!"));
-      return;
-    }
+    float eCO2, tvoc;
 
     // Compute heat index in Celsius (isFahreheit = false)
     float hic = dht.computeHeatIndex(cels, hum, false);
+
+    if(mySensor.dataAvailable()){
+      mySensor.setEnvironmentalData(hum, cels);
+      mySensor.readAlgorithmResults();
+
+      eCO2 = mySensor.getCO2();
+      tvoc = mySensor.getTVOC();
+      //Serial.println("CO2: "+String(mySensor.getCO2())+"ppm, TVOC: "+String(mySensor.getTVOC())+"ppb");
+    }
+
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(hum) || isnan(cels) || isnan(eCO2) || isnan(tvoc)) {
+      Serial.println(F("Failed to read from DHT sensor!"));
+      return;
+    }
 
     if (loopCounter >= 5) {
       Serial.println("Sending samples...");
@@ -178,8 +201,11 @@ void PerformMeasurements( void * pvParameters ){
       ts2.resetSamples();
       ts3.resetSamples();
       ts4.resetSamples();
+      ts5.resetSamples();
+      ts6.resetSamples();
     } else {
       Serial.println("Temperature: " + String(cels) +" Humidity: " + String(hum));
+      Serial.println("CO2: "+String(eCO2)+"ppm, TVOC: "+String(tvoc)+"ppb");
 
       if (!ts1.addSample(time, cels)) {
         Serial.println(ts1.errmsg);
@@ -192,6 +218,12 @@ void PerformMeasurements( void * pvParameters ){
       }
       if (!ts4.addSample(time, WiFi.RSSI())) {
         Serial.println(ts4.errmsg);
+      }
+      if (!ts5.addSample(time, eCO2)) {
+        Serial.println(ts5.errmsg);
+      }
+      if (!ts6.addSample(time, tvoc)) {
+        Serial.println(ts6.errmsg);
       }
       loopCounter++;
     }
@@ -229,6 +261,14 @@ void setup() {
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
+  Serial.println("CCS811 Reading CO2 and VOC");
+  Wire.begin();
+  if (mySensor.begin() == false) {
+    Serial.print("CCS811 error. Please check wiring. Freezing...");
+    while (1);
+  }
+  
+  Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
   xTaskCreate(PerformMeasurements, "PerformMeasurements", 10000, NULL, 2, NULL);
 
