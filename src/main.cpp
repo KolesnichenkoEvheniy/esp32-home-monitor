@@ -5,6 +5,7 @@
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
 #include <Adafruit_CCS811.h>
+#include <LiquidCrystal_I2C.h>
 // #include <UniversalTelegramBot.h>
 
 #include "certificates.h"
@@ -17,8 +18,9 @@ DHTesp dht;
 // co2 sensoor
 Adafruit_CCS811 ccs;
 
-// uint8_t SCL_PIN = 22;
-// uint8_t SDA_PIN = 21;
+#ifdef LCD_ENABLED
+LiquidCrystal_I2C lcd(0x27,16,2);
+#endif // LCD_ENABLED
 
 // Prometheus client and transport
 PromLokiTransport transport;
@@ -130,6 +132,11 @@ void ListenButton( void * pvParameters ){
       vTaskDelay(20 / portTICK_PERIOD_MS);
       if (digitalRead(PIN_BUTTON) == LOW) {
         showDebugLight = !showDebugLight;
+
+        #ifdef LCD_ENABLED
+        lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
+        #endif // LCD_ENABLED
+
         Serial.println("The button is released, state: " + String(showDebugLight));
         blink((showDebugLight == true) ? 3 : 2);
       }
@@ -173,8 +180,8 @@ void PerformMeasurements( void * pvParameters ){
 
     if(ccs.available()){
       ccs.setEnvironmentalData(hum, cels);
-      uint8_t sData = ccs.readData();
-      Serial.println("S data:" + String(sData));
+      uint8_t ccsData = ccs.readData();
+      Serial.println("CCS811 Sensor readings: " + String(ccsData));
       eCO2 = ccs.geteCO2();
       tvoc = ccs.getTVOC();
     }
@@ -184,6 +191,16 @@ void PerformMeasurements( void * pvParameters ){
       Serial.println(F("Failed to read from DHT sensor!"));
       return;
     }
+
+    Serial.println("Temperature: " + String(cels) +" Humidity: " + String(hum));
+    Serial.println("CO2: "+String(eCO2)+"ppm, TVOC: "+String(tvoc)+"ppb");
+
+    #ifdef LCD_ENABLED
+    lcd.setCursor(0,0);
+    lcd.print("CO2: " + String(eCO2)+"ppm.");
+    lcd.setCursor(0,1);
+    lcd.print("Temperature:" + String(cels));
+    #endif // LCD_ENABLED
 
     if (loopCounter >= 5) {
       Serial.println("Sending samples...");
@@ -203,9 +220,6 @@ void PerformMeasurements( void * pvParameters ){
       ts5.resetSamples();
       ts6.resetSamples();
     } else {
-      Serial.println("Temperature: " + String(cels) +" Humidity: " + String(hum));
-      Serial.println("CO2: "+String(eCO2)+"ppm, TVOC: "+String(tvoc)+"ppb");
-
       if (!ts1.addSample(time, cels)) {
         Serial.println(ts1.errmsg);
       }
@@ -239,6 +253,36 @@ void PerformMeasurements( void * pvParameters ){
   }
 }
 
+void scani2c() {
+  byte error, address;
+  int nDevices;
+  Serial.println("Searching for I2C devices...");
+  nDevices = 0;
+  for(address = 1; address < 127; address++ ) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16) {
+        Serial.print("0");
+      }
+      Serial.println(address,HEX);
+      nDevices++;
+    } else if (error==4) {
+      Serial.print("Unknow error at address 0x");
+      if (address<16) {
+        Serial.print("0");
+      }
+      Serial.println(address,HEX);
+    }    
+  }
+  if (nDevices == 0) {
+    Serial.println("No I2C devices found\n");
+  } else {
+    Serial.println("done\n");
+  }
+}
+
 // ========== MAIN FUNCTIONS: SETUP & LOOP ========== 
 // SETUP: Function called at boot to initialize the system
 void setup() {
@@ -260,14 +304,21 @@ void setup() {
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
+  #ifdef LCD_ENABLED
+  lcd.init();
+  lcd.backlight();
+  #endif // LCD_ENABLED
+
   Serial.println("CCS811 Reading CO2 and VOC");
-  Wire.begin();
+  Wire.begin(SDA, SCL);
   if(!ccs.begin(CCS811_ADDR)){
     Serial.println("Failed to start sensor! Please check your wiring.");
     while(1);
   } else {
     Serial.println("CCS811 started");
   }
+
+  scani2c();
   
   Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 

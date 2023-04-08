@@ -19,3 +19,8 @@
 
 #define TG_BOT_TOKEN "***************"
 #define TG_CHAT_ID "**********"
+
+#define SDA 21
+#define SCL 22
+
+#define LCD_ENABLED
