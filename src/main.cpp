@@ -317,6 +317,8 @@ void setup() {
   } else {
     Serial.println("CCS811 started");
   }
+  // Wait for the sensor to be ready
+  while(!ccs.available());
 
   scani2c();
   
