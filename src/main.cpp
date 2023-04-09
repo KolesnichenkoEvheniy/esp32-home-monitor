@@ -144,8 +144,6 @@ void ping( TimerHandle_t xTimer )
   #ifdef LCD_ENABLED
   lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
   #endif // LCD_ENABLED
-
-  vTaskDelete(NULL);
 }
 
 void ListenButton( void * pvParameters ){
