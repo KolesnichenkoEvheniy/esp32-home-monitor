@@ -24,3 +24,5 @@
 #define SCL 22
 
 #define LCD_ENABLED
+
+#define DEBUG_OFF_TIMER 60

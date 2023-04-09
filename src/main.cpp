@@ -45,6 +45,8 @@ TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"e
 
 int loopCounter = 0;
 bool showDebugLight = false;
+TimerHandle_t tmr;
+int timerId = 1;
 
 void setupWiFi() {
   Serial.println("Connecting to wifi ...'");
@@ -124,21 +126,45 @@ void blink(int count = 2) {
   }
 }
 
+void toggleDebug( bool newDebugState ) {
+  showDebugLight = newDebugState;
+  #ifdef LCD_ENABLED
+  lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
+  #endif // LCD_ENABLED
+
+  Serial.println("The button is released, state: " + String(showDebugLight));
+  blink((showDebugLight == true) ? 3 : 2);
+}
+
+void ping( TimerHandle_t xTimer )
+{
+  showDebugLight = false;
+  Serial.println("TIMER!");
+
+  #ifdef LCD_ENABLED
+  lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
+  #endif // LCD_ENABLED
+
+  vTaskDelete(NULL);
+}
+
 void ListenButton( void * pvParameters ){
-  Serial.print("Task1 running on core ");
-  Serial.println(xPortGetCoreID());
+  Serial.println("Task1 running on core " + String(xPortGetCoreID()));
+  
   for(;;){
     if (digitalRead(PIN_BUTTON) == LOW) {
       vTaskDelay(20 / portTICK_PERIOD_MS);
       if (digitalRead(PIN_BUTTON) == LOW) {
-        showDebugLight = !showDebugLight;
-
-        #ifdef LCD_ENABLED
-        lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
-        #endif // LCD_ENABLED
-
-        Serial.println("The button is released, state: " + String(showDebugLight));
-        blink((showDebugLight == true) ? 3 : 2);
+        
+        toggleDebug(!showDebugLight);
+        if (showDebugLight)
+        {
+          Serial.println("Setting timer...");
+          tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(DEBUG_OFF_TIMER * 1000), pdFALSE, ( void * )timerId, &ping);
+          if( xTimerStart(tmr, 10 ) != pdPASS ) {
+            Serial.println("Timer start error");
+          }
+        } 
       }
       while (digitalRead(PIN_BUTTON) == LOW);
       vTaskDelay(20 / portTICK_PERIOD_MS);
