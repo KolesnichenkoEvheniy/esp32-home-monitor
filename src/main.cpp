@@ -193,7 +193,7 @@ void PerformMeasurements( void * pvParameters ){
       goto flag; //If there is an error, go back to the flag and re-read the data
     }
 
-    float tempratureCorrection = 0;//1.4;
+    float tempratureCorrection = 1.4;
 
     float hum = newValues.humidity;
     float cels = newValues.temperature + tempratureCorrection;
@@ -203,7 +203,7 @@ void PerformMeasurements( void * pvParameters ){
     float hic = dht.computeHeatIndex(cels, hum, false);
 
     if(ccs.available()){
-      ccs.setEnvironmentalData(hum, cels);
+      //ccs.setEnvironmentalData(hum, cels);
       uint8_t ccsData = ccs.readData();
       Serial.println("CCS811 Sensor readings: " + String(ccsData));
       eCO2 = ccs.geteCO2();
