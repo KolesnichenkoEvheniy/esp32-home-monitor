@@ -27,7 +27,7 @@ PromLokiTransport transport;
 PromClient client(transport);
 
 // Create a write request for 4 series (when changing update buffers used to serialize the data)
-WriteRequest req(6, 512 * 6);
+WriteRequest req(7, 512 * 7);
 
 // Define a TimeSeries which can hold up to 5 samples, has a name of `temperature/humidity/...` and uses the above labels of which there are 2
 TimeSeries ts1(5, "temperature_celsius", "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
@@ -38,6 +38,8 @@ TimeSeries ts4(5, "wifi_rssi",  "{monitoring_type=\"room_comfort\",board_type=\"
 
 TimeSeries ts5(5, "eco2_ppm",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
+
+TimeSeries ts7(5, "ambient_light_lux",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 
 // telegram setup
 
@@ -111,6 +113,7 @@ void setupClient() {
   req.addTimeSeries(ts4);
   req.addTimeSeries(ts5);
   req.addTimeSeries(ts6);
+  req.addTimeSeries(ts7);
   // req.setDebug(Serial);  // Remove this line to disable debug logging of the write request serialization and compression.
 
   Serial.println("Prometheus transport configured successfully.");
@@ -210,6 +213,14 @@ void PerformMeasurements( void * pvParameters ){
       tvoc = ccs.getTVOC();
     }
 
+    // light
+    float ambientLightReadingAdc = analogRead(PIN_LIGHT_SENSOR);
+    double ambientLightVoltage = ambientLightReadingAdc / 4095.0 * 3.3;
+    float amps = ambientLightVoltage / 10000.0; // across 10,000 Ohms
+    float microamps = amps * 1000000;
+    float ambientLightLux = microamps * 2.0;
+    Serial.println("TEMP6000 Sensor readings: ADC=" + String(ambientLightReadingAdc) + "Lux=" + String(ambientLightLux));
+
     // Check if any reads failed and exit early (to try again).
     if (isnan(hum) || isnan(cels) || isnan(eCO2) || isnan(tvoc)) {
       Serial.println(F("Failed to read from DHT sensor!"));
@@ -243,6 +254,7 @@ void PerformMeasurements( void * pvParameters ){
       ts4.resetSamples();
       ts5.resetSamples();
       ts6.resetSamples();
+      ts7.resetSamples();
     } else {
       if (!ts1.addSample(time, cels)) {
         Serial.println(ts1.errmsg);
@@ -261,6 +273,9 @@ void PerformMeasurements( void * pvParameters ){
       }
       if (!ts6.addSample(time, tvoc)) {
         Serial.println(ts6.errmsg);
+      }
+      if (!ts7.addSample(time, ambientLightLux)) {
+        Serial.println(ts7.errmsg);
       }
       loopCounter++;
     }
@@ -325,7 +340,7 @@ void setup() {
   dht.setup(PIN_DHT, DHTesp::DHT11);
 
   pinMode(PIN_LED, OUTPUT);
-
+  pinMode(PIN_LIGHT_SENSOR, INPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
   #ifdef LCD_ENABLED
@@ -334,7 +349,7 @@ void setup() {
   #endif // LCD_ENABLED
 
   Serial.println("CCS811 Reading CO2 and VOC");
-  Wire.begin(SDA, SCL);
+  Wire.begin(PIN_SDA, PIN_SCL);
   if(!ccs.begin(CCS811_ADDR)){
     Serial.println("Failed to start sensor! Please check your wiring.");
     while(1);
