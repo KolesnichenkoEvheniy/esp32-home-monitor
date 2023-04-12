@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include "DHTesp.h"
+#include <Temperature_LM75_Derived.h>
 #include <WiFi.h>
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
@@ -18,8 +19,11 @@ DHTesp dht;
 // co2 sensoor
 Adafruit_CCS811 ccs;
 
+// Temperature sensor
+Generic_LM75 temperature(TEMRATURE_LM75_ADDR);
+
 #ifdef LCD_ENABLED
-LiquidCrystal_I2C lcd(0x27,16,2);
+LiquidCrystal_I2C lcd(LCD_ADDR,16,2);
 #endif // LCD_ENABLED
 
 // Prometheus client and transport
@@ -196,17 +200,15 @@ void PerformMeasurements( void * pvParameters ){
       goto flag; //If there is an error, go back to the flag and re-read the data
     }
 
-    float tempratureCorrection = 1.4;
-
     float hum = newValues.humidity;
-    float cels = newValues.temperature + tempratureCorrection;
+    float cels = temperature.readTemperatureC();
     float eCO2, tvoc;
 
     // Compute heat index in Celsius (isFahreheit = false)
     float hic = dht.computeHeatIndex(cels, hum, false);
 
     if(ccs.available()){
-      //ccs.setEnvironmentalData(hum, cels);
+      ccs.setEnvironmentalData(hum, cels);
       uint8_t ccsData = ccs.readData();
       Serial.println("CCS811 Sensor readings: " + String(ccsData));
       eCO2 = ccs.geteCO2();
