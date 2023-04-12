@@ -234,9 +234,9 @@ void PerformMeasurements( void * pvParameters ){
 
     #ifdef LCD_ENABLED
     lcd.setCursor(0,0);
-    lcd.print("CO2: " + String(eCO2)+"ppm.");
+    lcd.print("CO2:" + String((int)eCO2)+" TCO:"+String((int)tvoc));
     lcd.setCursor(0,1);
-    lcd.print("Temperature:" + String(cels));
+    lcd.print("T:" + String(cels) + "H:" + String((int)hum) + "L" + String(ambientLightLux));
     #endif // LCD_ENABLED
 
     if (loopCounter >= 5) {
