@@ -25,6 +25,8 @@
 #define TG_CHAT_ID "**********"
 
 #define CCS811_ADDR 0x5A
+#define LCD_ADDR 0x27
+#define TEMRATURE_LM75_ADDR 0x48
 
 #define LCD_ENABLED
 
