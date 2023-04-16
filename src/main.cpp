@@ -137,6 +137,7 @@ void toggleDebug( bool newDebugState ) {
   showDebugLight = newDebugState;
   #ifdef LCD_ENABLED
   lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
+  lcd.noCursor();
   #endif // LCD_ENABLED
 
   Serial.println("The button is released, state: " + String(showDebugLight));
