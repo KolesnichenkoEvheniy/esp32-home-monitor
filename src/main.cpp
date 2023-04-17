@@ -22,9 +22,7 @@ Adafruit_CCS811 ccs;
 // Temperature sensor
 Generic_LM75 temperature(TEMRATURE_LM75_ADDR);
 
-#ifdef LCD_ENABLED
 LiquidCrystal_I2C lcd(LCD_ADDR,16,2);
-#endif // LCD_ENABLED
 
 // Prometheus client and transport
 PromLokiTransport transport;
@@ -135,10 +133,9 @@ void blink(int count = 2) {
 
 void toggleDebug( bool newDebugState ) {
   showDebugLight = newDebugState;
-  #ifdef LCD_ENABLED
+
   lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
   lcd.noCursor();
-  #endif // LCD_ENABLED
 
   Serial.println("The button is released, state: " + String(showDebugLight));
   blink((showDebugLight == true) ? 3 : 2);
@@ -149,9 +146,7 @@ void ping( TimerHandle_t xTimer )
   showDebugLight = false;
   Serial.println("TIMER!");
 
-  #ifdef LCD_ENABLED
   lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
-  #endif // LCD_ENABLED
 }
 
 void ListenButton( void * pvParameters ){
@@ -179,6 +174,17 @@ void ListenButton( void * pvParameters ){
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
   }
+}
+
+float averageAdcValue(int pin, int n = 5) {
+  float sum = 0;
+
+  for(int i=0; i < n; i++) {
+    sum += analogRead(pin);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+
+  return sum / n;
 }
 
 void PerformMeasurements( void * pvParameters ){
@@ -217,11 +223,12 @@ void PerformMeasurements( void * pvParameters ){
     }
 
     // light
-    float ambientLightReadingAdc = analogRead(PIN_LIGHT_SENSOR);
+    float ambientLightReadingAdc = averageAdcValue(PIN_LIGHT_SENSOR);
     double ambientLightVoltage = ambientLightReadingAdc / 4095.0 * 3.3;
     float amps = ambientLightVoltage / 10000.0; // across 10,000 Ohms
     float microamps = amps * 1000000;
-    float ambientLightLux = microamps * 2.0;
+    int ambientLightLux = (int)(microamps * 2.0);
+
     Serial.println("TEMP6000 Sensor readings: ADC=" + String(ambientLightReadingAdc) + "Lux=" + String(ambientLightLux));
 
     // Check if any reads failed and exit early (to try again).
@@ -233,12 +240,11 @@ void PerformMeasurements( void * pvParameters ){
     Serial.println("Temperature: " + String(cels) +" Humidity: " + String(hum));
     Serial.println("CO2: "+String(eCO2)+"ppm, TVOC: "+String(tvoc)+"ppb");
 
-    #ifdef LCD_ENABLED
+    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("CO2:" + String((int)eCO2)+" TCO:"+String((int)tvoc));
     lcd.setCursor(0,1);
-    lcd.print("T:" + String(cels) + "H:" + String((int)hum) + "L" + String((int)ambientLightLux));
-    #endif // LCD_ENABLED
+    lcd.print("T:" + String(cels) + "H:" + String((int)hum) + "L:" + String(ambientLightLux));
 
     if (loopCounter >= 5) {
       Serial.println("Sending samples...");
@@ -346,10 +352,8 @@ void setup() {
   pinMode(PIN_LIGHT_SENSOR, INPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
-  #ifdef LCD_ENABLED
   lcd.init();
   lcd.noBacklight();
-  #endif // LCD_ENABLED
 
   Serial.println("CCS811 Reading CO2 and VOC");
   Wire.begin(PIN_SDA, PIN_SCL);

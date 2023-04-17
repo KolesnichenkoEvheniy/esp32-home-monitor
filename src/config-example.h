@@ -28,6 +28,4 @@
 #define LCD_ADDR 0x27
 #define TEMRATURE_LM75_ADDR 0x48
 
-#define LCD_ENABLED
-
 #define DEBUG_OFF_TIMER 60
