@@ -465,7 +465,17 @@ void setup() {
     //   digitalWrite(ledPin, LOW);
     //   request->send(SPIFFS, "/index.html", "text/html", false, String());
     // });
-    server.begin();
+
+    server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
+      Serial.println("Reset request");
+  
+      writeFile(SPIFFS, ssidPath, "");
+      writeFile(SPIFFS, passPath, "");
+      writeFile(SPIFFS, ipPath, "");
+      request->send(200, "text/plain", "Done. ESP will restart, connect to AP and go to IP address from the LCD");
+      delay(3000);
+      ESP.restart();
+    });
   } else {
     // Connect to Wi-Fi network with SSID and password
     Serial.println("Setting AP (Access Point)");
@@ -521,9 +531,10 @@ void setup() {
       delay(3000);
       ESP.restart();
     });
-    server.begin();
     return;
   }
+
+  server.begin();
 
   setupClient();
 
