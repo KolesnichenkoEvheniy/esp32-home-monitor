@@ -3,6 +3,9 @@
 #include "DHTesp.h"
 #include <Temperature_LM75_Derived.h>
 #include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
+#include "SPIFFS.h"
 // #include <WiFiClientSecure.h>
 #include <PrometheusArduino.h>
 #include <Adafruit_CCS811.h>
@@ -52,19 +55,99 @@ bool showDebugLight = false;
 TimerHandle_t tmr;
 int timerId = 1;
 
-void setupWiFi() {
-  Serial.println("Connecting to wifi ...'");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  // WiFi.mode(WIFI_STA);
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+// Search for parameter in HTTP POST request
+const char* PARAM_INPUT_1 = "ssid";
+const char* PARAM_INPUT_2 = "pass";
+const char* PARAM_INPUT_3 = "ip";
+
+
+//Variables to save values from HTML form
+String ssid;
+String pass;
+String ip;
+
+// File paths to save input values permanently
+const char* ssidPath = "/ssid.txt";
+const char* passPath = "/pass.txt";
+const char* ipPath = "/ip.txt";
+
+IPAddress localIP;
+//IPAddress localIP(192, 168, 1, 200); // hardcoded
+
+// Timer variables
+unsigned long previousMillis = 0;
+const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
+
+void initSPIFFS() {
+  if (!SPIFFS.begin(true)) {
+    Serial.println("An error has occurred while mounting SPIFFS");
+  }
+  Serial.println("SPIFFS mounted successfully");
+}
+
+// Read File from SPIFFS
+String readFile(fs::FS &fs, const char * path){
+  Serial.printf("Reading file: %s\r\n", path);
+
+  File file = fs.open(path);
+  if(!file || file.isDirectory()){
+    Serial.println("- failed to open file for reading");
+    return String();
+  }
+  
+  String fileContent;
+  while(file.available()){
+    fileContent = file.readStringUntil('\n');
+    break;     
+  }
+  return fileContent;
+}
+
+// Write file to SPIFFS
+void writeFile(fs::FS &fs, const char * path, const char * message){
+  Serial.printf("Writing file: %s\r\n", path);
+
+  File file = fs.open(path, FILE_WRITE);
+  if(!file){
+    Serial.println("- failed to open file for writing");
+    return;
+  }
+  if(file.print(message)){
+    Serial.println("- file written");
+  } else {
+    Serial.println("- frite failed");
+  }
+}
+
+// Initialize WiFi
+bool initWiFi() {
+  if(ssid=="" || ip==""){
+    Serial.println("Undefined SSID or IP address.");
+    return false;
   }
 
-  Serial.println("connected");
-  Serial.print("IP address: ");
+  WiFi.mode(WIFI_STA);
+
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  Serial.println("Connecting to WiFi...");
+
+  unsigned long currentMillis = millis();
+  previousMillis = currentMillis;
+
+  while(WiFi.status() != WL_CONNECTED) {
+    currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      Serial.println("Failed to connect.");
+      return false;
+    }
+    delay(500);
+  }
+
   Serial.println(WiFi.localIP());
+  return true;
 }
 
 // Function to set up Prometheus client
@@ -77,10 +160,6 @@ void setupClient() {
     Serial.println("Serial timeout: " + String(serialTimeout));
     serialTimeout++;
   }
-
-  // Setup wifi
-  WiFi.mode(WIFI_STA);
-  //wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
   
   Serial.println("Configuring prometheus transport...");
   // Configure and start the transport layer
@@ -188,8 +267,7 @@ float averageAdcValue(int pin, int n = 5) {
 }
 
 void PerformMeasurements( void * pvParameters ){
-  Serial.print("Task2 running on core ");
-  Serial.println(xPortGetCoreID());
+  Serial.println("Task2 running on core " + String(xPortGetCoreID()));
 
   for(;;){
     if(showDebugLight == true) {
@@ -201,7 +279,6 @@ void PerformMeasurements( void * pvParameters ){
 
     // Read temperature and humidity
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
-    //Serial.println("DHT STATUS: "+String(dht.getStatus()));
     if (dht.getStatus() != 0) { //Judge if the correct value is read
       vTaskDelay(100 / portTICK_PERIOD_MS);
       goto flag; //If there is an error, go back to the flag and re-read the data
@@ -301,6 +378,20 @@ void PerformMeasurements( void * pvParameters ){
   }
 }
 
+String processor(const String& var) {
+  return "ON";
+  // if(var == "STATE") {
+  //   if(digitalRead(ledPin)) {
+  //     ledState = "ON";
+  //   }
+  //   else {
+  //     ledState = "OFF";
+  //   }
+  //   return ledState;
+  // }
+  // return String();
+}
+
 void scani2c() {
   byte error, address;
   int nDevices;
@@ -337,10 +428,103 @@ void setup() {
   // Start the serial output at 115,200 baud
   Serial.begin(115200);
 
+  lcd.init();
+  lcd.backlight();
+
   // secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 
-  // Set up client
-  setupWiFi();
+  initSPIFFS();
+
+  // Load values saved in SPIFFS
+  ssid = readFile(SPIFFS, ssidPath);
+  pass = readFile(SPIFFS, passPath);
+  ip = readFile(SPIFFS, ipPath);
+  Serial.println(ssid);
+  Serial.println(pass);
+  Serial.println(ip);
+
+  if(initWiFi()) {
+
+    lcd.setCursor(0,0);
+    lcd.print("IP:" + WiFi.localIP().toString());
+    delay(500);
+    // Route for root / web page
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+    server.serveStatic("/", SPIFFS, "/");
+    
+    // Route to set GPIO state to HIGH
+    // server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //   digitalWrite(ledPin, HIGH);
+    //   request->send(SPIFFS, "/index.html", "text/html", false, String());
+    // });
+
+    // // Route to set GPIO state to LOW
+    // server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //   digitalWrite(ledPin, LOW);
+    //   request->send(SPIFFS, "/index.html", "text/html", false, String());
+    // });
+    server.begin();
+  } else {
+    // Connect to Wi-Fi network with SSID and password
+    Serial.println("Setting AP (Access Point)");
+    // NULL sets an open Access Point
+    WiFi.softAP("ESP-WIFI-MANAGER", NULL);
+
+    IPAddress IP = WiFi.softAPIP();
+    Serial.print("AP IP address: ");
+    Serial.println(IP); 
+    lcd.setCursor(0,0);
+    lcd.print("IP:" + IP.toString());
+
+    // Web Server Root URL
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/wifimanager.html", "text/html");
+    });
+    
+    server.serveStatic("/", SPIFFS, "/");
+    
+    server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
+      int params = request->params();
+      for(int i=0;i<params;i++){
+        AsyncWebParameter* p = request->getParam(i);
+        if(p->isPost()){
+          // HTTP POST ssid value
+          if (p->name() == PARAM_INPUT_1) {
+            ssid = p->value().c_str();
+            Serial.print("SSID set to: ");
+            Serial.println(ssid);
+            // Write file to save value
+            writeFile(SPIFFS, ssidPath, ssid.c_str());
+          }
+          // HTTP POST pass value
+          if (p->name() == PARAM_INPUT_2) {
+            pass = p->value().c_str();
+            Serial.print("Password set to: ");
+            Serial.println(pass);
+            // Write file to save value
+            writeFile(SPIFFS, passPath, pass.c_str());
+          }
+          // HTTP POST ip value
+          if (p->name() == PARAM_INPUT_3) {
+            ip = p->value().c_str();
+            Serial.print("IP Address set to: ");
+            Serial.println(ip);
+            // Write file to save value
+            writeFile(SPIFFS, ipPath, ip.c_str());
+          }
+          //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        }
+      }
+      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
+      delay(3000);
+      ESP.restart();
+    });
+    server.begin();
+    return;
+  }
+
   setupClient();
 
   // bot.sendMessage(TG_CHAT_ID, "ESP started. WIFI connected. IP: " + WiFi.localIP().toString(), "");
@@ -352,7 +536,6 @@ void setup() {
   pinMode(PIN_LIGHT_SENSOR, INPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
-  lcd.init();
   lcd.noBacklight();
 
   Serial.println("CCS811 Reading CO2 and VOC");
