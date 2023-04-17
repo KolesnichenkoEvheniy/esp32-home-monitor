@@ -476,6 +476,7 @@ void setup() {
       delay(3000);
       ESP.restart();
     });
+    server.begin();
   } else {
     // Connect to Wi-Fi network with SSID and password
     Serial.println("Setting AP (Access Point)");
@@ -531,10 +532,9 @@ void setup() {
       delay(3000);
       ESP.restart();
     });
+    server.begin();
     return;
   }
-
-  server.begin();
 
   setupClient();
 
