@@ -1,8 +1,4 @@
-#define WIFI_SSID     "**********"
-#define WIFI_PASSWORD "**********"
-
 #define ID "room_comfort" // Add unique name for this sensor
-#define INTERVAL 30 //seconds
 
 #define DHTTYPE DHT11 // Type DHT 11
 

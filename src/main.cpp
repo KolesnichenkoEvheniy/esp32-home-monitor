@@ -1,3 +1,4 @@
+#include <string>
 #include <Arduino.h>
 #include <Wire.h>
 #include "DHTesp.h"
@@ -54,28 +55,25 @@ int loopCounter = 0;
 bool showDebugLight = false;
 TimerHandle_t tmr;
 int timerId = 1;
+int refreshInterval = 30;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 // Search for parameter in HTTP POST request
-const char* PARAM_INPUT_1 = "ssid";
-const char* PARAM_INPUT_2 = "pass";
-const char* PARAM_INPUT_3 = "ip";
+const char* PARAM_SSID = "ssid";
+const char* PARAM_PASSWORD = "pass";
+const char* PARAM_INTERVAL = "interval";
 
 
 //Variables to save values from HTML form
 String ssid;
 String pass;
-String ip;
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
 const char* passPath = "/pass.txt";
-const char* ipPath = "/ip.txt";
-
-IPAddress localIP;
-//IPAddress localIP(192, 168, 1, 200); // hardcoded
+const char* intervalPath = "/interval.txt";
 
 // Timer variables
 unsigned long previousMillis = 0;
@@ -124,8 +122,8 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 
 // Initialize WiFi
 bool initWiFi() {
-  if(ssid=="" || ip==""){
-    Serial.println("Undefined SSID or IP address.");
+  if(ssid=="" || pass==""){
+    Serial.println("Undefined SSID or Password.");
     return false;
   }
 
@@ -374,22 +372,15 @@ void PerformMeasurements( void * pvParameters ){
     }
     digitalWrite(PIN_LED, LOW);
     // wait INTERVAL seconds and then do it again
-    vTaskDelay(INTERVAL * 1000 / portTICK_PERIOD_MS);
+    vTaskDelay(refreshInterval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
 String processor(const String& var) {
-  return "ON";
-  // if(var == "STATE") {
-  //   if(digitalRead(ledPin)) {
-  //     ledState = "ON";
-  //   }
-  //   else {
-  //     ledState = "OFF";
-  //   }
-  //   return ledState;
-  // }
-  // return String();
+  if(var == "INTERVAL") {
+    return String(refreshInterval);
+  }
+  return String();
 }
 
 void scani2c() {
@@ -438,40 +429,40 @@ void setup() {
   // Load values saved in SPIFFS
   ssid = readFile(SPIFFS, ssidPath);
   pass = readFile(SPIFFS, passPath);
-  ip = readFile(SPIFFS, ipPath);
+  refreshInterval = readFile(SPIFFS, intervalPath).toInt();
+  if(refreshInterval < 1) refreshInterval = 5;
   Serial.println(ssid);
   Serial.println(pass);
-  Serial.println(ip);
+  Serial.println(refreshInterval);
 
   if(initWiFi()) {
-
     lcd.setCursor(0,0);
     lcd.print("IP:" + WiFi.localIP().toString());
+    lcd.setCursor(0,1);
+    lcd.print("Refresh: " + String(refreshInterval));
     delay(500);
     // Route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
     server.serveStatic("/", SPIFFS, "/");
-    
-    // Route to set GPIO state to HIGH
-    // server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //   digitalWrite(ledPin, HIGH);
-    //   request->send(SPIFFS, "/index.html", "text/html", false, String());
-    // });
-
-    // // Route to set GPIO state to LOW
-    // server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //   digitalWrite(ledPin, LOW);
-    //   request->send(SPIFFS, "/index.html", "text/html", false, String());
-    // });
+ 
+    server.on("/save", HTTP_POST, [](AsyncWebServerRequest *request) {
+      if (request->hasParam(PARAM_INTERVAL, true)) {
+        refreshInterval = request->getParam(PARAM_INTERVAL, true)->value().toInt();
+        Serial.println("New value: " + String(refreshInterval));
+        writeFile(SPIFFS, intervalPath, request->getParam(PARAM_INTERVAL, true)->value().c_str());
+        Serial.println("Refresh interval set to: " + String(refreshInterval));
+      }
+      request->send(200, "text/plain", "Saved. Refresh interval:" + String(refreshInterval));
+    });
 
     server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
       Serial.println("Reset request");
   
       writeFile(SPIFFS, ssidPath, "");
       writeFile(SPIFFS, passPath, "");
-      writeFile(SPIFFS, ipPath, "");
+      writeFile(SPIFFS, intervalPath, "30");
       request->send(200, "text/plain", "Done. ESP will restart, connect to AP and go to IP address from the LCD");
       delay(3000);
       ESP.restart();
@@ -502,7 +493,7 @@ void setup() {
         AsyncWebParameter* p = request->getParam(i);
         if(p->isPost()){
           // HTTP POST ssid value
-          if (p->name() == PARAM_INPUT_1) {
+          if (p->name() == PARAM_SSID) {
             ssid = p->value().c_str();
             Serial.print("SSID set to: ");
             Serial.println(ssid);
@@ -510,25 +501,17 @@ void setup() {
             writeFile(SPIFFS, ssidPath, ssid.c_str());
           }
           // HTTP POST pass value
-          if (p->name() == PARAM_INPUT_2) {
+          if (p->name() == PARAM_PASSWORD) {
             pass = p->value().c_str();
             Serial.print("Password set to: ");
             Serial.println(pass);
             // Write file to save value
             writeFile(SPIFFS, passPath, pass.c_str());
           }
-          // HTTP POST ip value
-          if (p->name() == PARAM_INPUT_3) {
-            ip = p->value().c_str();
-            Serial.print("IP Address set to: ");
-            Serial.println(ip);
-            // Write file to save value
-            writeFile(SPIFFS, ipPath, ip.c_str());
-          }
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
-      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
+      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address.");
       delay(3000);
       ESP.restart();
     });

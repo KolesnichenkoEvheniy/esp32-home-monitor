@@ -14,12 +14,14 @@
     <div class="content">
       <div class="card-grid">
         <div class="card">
-          <p class="card-title"><i class="fas fa-lightbulb"></i> GPIO 2</p>
-          <p>
-            <a href="on"><button class="button-on">ON</button></a>
-            <a href="off"><button class="button-off">OFF</button></a>
-          </p>
-          <p class="state">State: %STATE%</p>
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Settings</p>
+          <form action="/save" method="POST">
+            <p>
+              <label for="interval">interval</label>
+              <input type="number" id ="interval" name="interval" value="%INTERVAL%"><br>
+              <input type ="submit" value ="Submit">
+            </p>
+          </form>
         </div>
       </div>
     </div>
