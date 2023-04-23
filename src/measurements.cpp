@@ -102,8 +102,9 @@ void PerformMeasurements( void * pvParameters ){
       loopCounter++;
     }
 
+    //bluetoothClientLoop();
     ///////// ---
-    Serial.println("Show light? " + String(showDebugLight));
+    // Serial.println("Show light? " + String(showDebugLight));
 
     if(showDebugLight == true) {
       vTaskDelay(300 / portTICK_PERIOD_MS);

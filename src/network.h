@@ -6,11 +6,14 @@
 #include "config.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <esp_now.h>
 #include <AsyncTCP.h>
 
 bool initWiFi();
 
-void setupNetworkAndServer();
+bool setupNetworkAndServer();
+
+void initESPNowClient();
 
 extern String ssid;
 extern String pass;

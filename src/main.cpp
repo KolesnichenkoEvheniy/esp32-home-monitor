@@ -6,14 +6,8 @@
 #include "metrics.h"
 #include "files.h"
 #include "measurements.h"
-// #include <WiFiClientSecure.h>
-// #include <UniversalTelegramBot.h>
-
 #include "config.h"
 
-// telegram setup
-
-// UniversalTelegramBot bot(TG_BOT_TOKEN, secured_client);
 TimerHandle_t tmr;
 int timerId = 1;
 
@@ -110,13 +104,14 @@ void setup() {
 
   lcd.init();
 
-  // secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-
-  setupNetworkAndServer();
+  if (!setupNetworkAndServer()) {
+    return;
+  }
+  
 
   setupPrometheusClient();
 
-  // bot.sendMessage(TG_CHAT_ID, "ESP started. WIFI connected. IP: " + WiFi.localIP().toString(), "");
+  initESPNowClient();
 
   // Start the DHT sensor
   dht.setup(PIN_DHT, DHTesp::DHT11);
