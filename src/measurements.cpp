@@ -1,17 +1,9 @@
 #include "measurements.h"
 
-int loopCounter = 0;
+unsigned int loopCounter = 0;
 
-void PerformMeasurements( void * pvParameters ){
-  Serial.println("Task2 running on core " + String(xPortGetCoreID()));
-
-  for(;;){
-    if(showDebugLight == true) {
-      digitalWrite(PIN_LED, HIGH);
-    }
-
-    int64_t time;
-    time = transport.getTimeMillis();
+struct_measurements getFreshMeasurements() {
+    struct_measurements measurements;
 
     // Read temperature and humidity
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
@@ -42,22 +34,45 @@ void PerformMeasurements( void * pvParameters ){
     float microamps = amps * 1000000;
     int ambientLightLux = (int)(microamps * 2.0);
 
-    Serial.println("TEMP6000 Sensor readings: ADC=" + String(ambientLightReadingAdc) + "Lux=" + String(ambientLightLux));
+    measurements.humidity = hum;
+    measurements.temperature = cels;
+    measurements.hic = hic;
+    measurements.eco2 = eCO2;
+    measurements.tvoc = tvoc;
+    measurements.ambient_light_lux = ambientLightLux;
+
+    return measurements;
+}
+
+void PerformMeasurements( void * pvParameters ){
+  Serial.println("Task2 running on core " + String(xPortGetCoreID()));
+
+  for(;;){
+    if(showDebugLight == true) {
+      digitalWrite(PIN_LED, HIGH);
+    }
+
+    int64_t time;
+    time = transport.getTimeMillis();
+
+    struct_measurements freshMeasurements = getFreshMeasurements();
+
+    Serial.println("TEMP6000 Sensor readings: Lux=" + String(freshMeasurements.ambient_light_lux));
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(hum) || isnan(cels) || isnan(eCO2) || isnan(tvoc)) {
-      Serial.println(F("Failed to read from DHT sensor!"));
+    if (isnan(freshMeasurements.humidity) || isnan(freshMeasurements.temperature) || isnan(freshMeasurements.eco2) || isnan(freshMeasurements.tvoc)) {
+      Serial.println(F("Failed to read measurements!"));
       return;
     }
 
-    Serial.println("Temperature: " + String(cels) +" Humidity: " + String(hum));
-    Serial.println("CO2: "+String(eCO2)+"ppm, TVOC: "+String(tvoc)+"ppb");
+    Serial.println("Temperature: " + String(freshMeasurements.temperature) +" Humidity: " + String(freshMeasurements.humidity));
+    Serial.println("CO2: "+String(freshMeasurements.eco2)+"ppm, TVOC: "+String(freshMeasurements.tvoc)+"ppb");
 
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("CO2:" + String((int)eCO2)+" TCO:"+String((int)tvoc));
+    lcd.print("CO2:" + String((int)freshMeasurements.eco2)+" TCO:"+String((int)freshMeasurements.tvoc));
     lcd.setCursor(0,1);
-    lcd.print("T:" + String(cels) + "H:" + String((int)hum) + "L:" + String(ambientLightLux));
+    lcd.print("T:" + String(freshMeasurements.temperature) + "H:" + String((int)freshMeasurements.humidity) + "L:" + String(freshMeasurements.ambient_light_lux));
 
     if (loopCounter >= 5) {
       Serial.println("Sending samples...");
@@ -78,33 +93,29 @@ void PerformMeasurements( void * pvParameters ){
       ts6.resetSamples();
       ts7.resetSamples();
     } else {
-      if (!ts1.addSample(time, cels)) {
+      if (!ts1.addSample(time, freshMeasurements.temperature)) {
         Serial.println(ts1.errmsg);
       }
-      if (!ts2.addSample(time, hum)) {
+      if (!ts2.addSample(time, freshMeasurements.humidity)) {
         Serial.println(ts2.errmsg);
       }
-      if (!ts3.addSample(time, hic)) {
+      if (!ts3.addSample(time, freshMeasurements.hic)) {
         Serial.println(ts3.errmsg);
       }
       if (!ts4.addSample(time, WiFi.RSSI())) {
         Serial.println(ts4.errmsg);
       }
-      if (!ts5.addSample(time, eCO2)) {
+      if (!ts5.addSample(time, freshMeasurements.eco2)) {
         Serial.println(ts5.errmsg);
       }
-      if (!ts6.addSample(time, tvoc)) {
+      if (!ts6.addSample(time, freshMeasurements.tvoc)) {
         Serial.println(ts6.errmsg);
       }
-      if (!ts7.addSample(time, ambientLightLux)) {
+      if (!ts7.addSample(time, freshMeasurements.ambient_light_lux)) {
         Serial.println(ts7.errmsg);
       }
       loopCounter++;
     }
-
-    //bluetoothClientLoop();
-    ///////// ---
-    // Serial.println("Show light? " + String(showDebugLight));
 
     if(showDebugLight == true) {
       vTaskDelay(300 / portTICK_PERIOD_MS);
