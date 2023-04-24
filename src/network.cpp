@@ -100,7 +100,6 @@ void initESPNowClient() {
 
 bool setupNetworkAndServer() {
     lcd.backlight();
-    initSPIFFS();
 
     // Load values saved in SPIFFS
     ssid = readFile(SPIFFS, ssidPath);

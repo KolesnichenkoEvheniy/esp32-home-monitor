@@ -103,14 +103,11 @@ void setup() {
   Serial.begin(115200);
 
   lcd.init();
-
+  initSPIFFS();
   if (!setupNetworkAndServer()) {
     return;
   }
-  
-
   setupPrometheusClient();
-
   initESPNowClient();
 
   // Start the DHT sensor
