@@ -2,8 +2,8 @@
 
 unsigned int loopCounter = 0;
 
-struct_measurements getFreshMeasurements() {
-    struct_measurements measurements;
+ClimateMeasurements getFreshMeasurements() {
+    ClimateMeasurements measurements;
 
     // Read temperature and humidity
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
@@ -55,7 +55,7 @@ void PerformMeasurements( void * pvParameters ){
     int64_t time;
     time = transport.getTimeMillis();
 
-    struct_measurements freshMeasurements = getFreshMeasurements();
+    ClimateMeasurements freshMeasurements = getFreshMeasurements();
 
     Serial.println("TEMP6000 Sensor readings: Lux=" + String(freshMeasurements.ambient_light_lux));
 

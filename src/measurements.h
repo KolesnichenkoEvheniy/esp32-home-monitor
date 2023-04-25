@@ -4,17 +4,17 @@
 #include "globals.h"
 #include "metrics.h"
 
-typedef struct struct_measurements {
+typedef struct ClimateMeasurements {
   float humidity;
   float temperature;
   float hic;
   unsigned int ambient_light_lux;
   float eco2;
   float tvoc;
-} struct_measurements;
+} ClimateMeasurements;
 
 void PerformMeasurements( void * pvParameters );
 
-struct_measurements getFreshMeasurements();
+ClimateMeasurements getFreshMeasurements();
 
 #endif // __MEASUREMENTS_H__
