@@ -1,8 +1,8 @@
 #include "measurements.h"
 
-ClimateMeasurements getFreshMeasurements() {
-    ClimateMeasurements measurements;
+ClimateMeasurements measurements;
 
+void performFreshMeasurements() {
     // Read temperature and humidity
     flag:TempAndHumidity newValues = dht.getTempAndHumidity(); //Get the Temperature and humidity
     if (dht.getStatus() != 0) { //Judge if the correct value is read
@@ -38,6 +38,4 @@ ClimateMeasurements getFreshMeasurements() {
     measurements.eco2 = eCO2;
     measurements.tvoc = tvoc;
     measurements.ambient_light_lux = ambientLightLux;
-
-    return measurements;
 }

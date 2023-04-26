@@ -13,6 +13,8 @@ typedef struct ClimateMeasurements {
   float tvoc;
 } ClimateMeasurements;
 
-ClimateMeasurements getFreshMeasurements();
+extern ClimateMeasurements measurements;
+
+void performFreshMeasurements();
 
 #endif // __MEASUREMENTS_H__

@@ -54,25 +54,24 @@ void measurementsLoop( void * pvParameters ){
       digitalWrite(PIN_LED, HIGH);
     }
 
-    ClimateMeasurements freshMeasurements = getFreshMeasurements();
-
+    performFreshMeasurements();
     // Check if any reads failed and exit early (to try again).
-    if (isnan(freshMeasurements.humidity) || isnan(freshMeasurements.temperature) || isnan(freshMeasurements.eco2) || isnan(freshMeasurements.tvoc)) {
+    if (isnan(measurements.humidity) || isnan(measurements.temperature) || isnan(measurements.eco2) || isnan(measurements.tvoc)) {
       Serial.println(F("Failed to read measurements!"));
       return;
     }
 
-    Serial.println("Temperature: " + String(freshMeasurements.temperature) +" Humidity: " + String(freshMeasurements.humidity));
-    Serial.println("CO2: "+String(freshMeasurements.eco2)+"ppm, TVOC: "+String(freshMeasurements.tvoc)+"ppb");
-    Serial.println("TEMP6000 Sensor readings: Lux=" + String(freshMeasurements.ambient_light_lux));
+    Serial.println("Temperature: " + String(measurements.temperature) +" Humidity: " + String(measurements.humidity));
+    Serial.println("CO2: "+String(measurements.eco2)+"ppm, TVOC: "+String(measurements.tvoc)+"ppb");
+    Serial.println("TEMP6000 Sensor readings: Lux=" + String(measurements.ambient_light_lux));
 
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("CO2:" + String((int)freshMeasurements.eco2)+" TCO:"+String((int)freshMeasurements.tvoc));
+    lcd.print("CO2:" + String((int)measurements.eco2)+" TCO:"+String((int)measurements.tvoc));
     lcd.setCursor(0,1);
-    lcd.print("T:" + String(freshMeasurements.temperature) + "H:" + String((int)freshMeasurements.humidity) + "L:" + String(freshMeasurements.ambient_light_lux));
+    lcd.print("T:" + String(measurements.temperature) + "H:" + String((int)measurements.humidity) + "L:" + String(measurements.ambient_light_lux));
 
-    logMeasurements(freshMeasurements);
+    logMeasurementMetrics();
 
     if(showDebugLight == true) {
       vTaskDelay(300 / portTICK_PERIOD_MS);

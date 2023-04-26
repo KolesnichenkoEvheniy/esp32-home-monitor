@@ -4,6 +4,7 @@
 #include <PrometheusArduino.h>
 #include "measurements.h"
 #include "certificates.h"
+#include "metrics.h"
 #include "config.h"
 
 // Prometheus client and transport
@@ -24,6 +25,6 @@ extern TimeSeries ts7;
 
 void setupPrometheusClient();
 
-void logMeasurements(ClimateMeasurements &measurements);
+void logMeasurementMetrics();
 
 #endif // __METRICS_H__
