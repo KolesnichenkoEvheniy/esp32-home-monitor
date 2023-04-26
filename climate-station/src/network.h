@@ -9,6 +9,14 @@
 #include <esp_now.h>
 #include <AsyncTCP.h>
 
+// Structure example to receive data
+// Must match the sender structure
+typedef struct struct_message {
+  int id;
+  float soil;
+  unsigned int readingId;
+} struct_message;
+
 bool initWiFi();
 
 bool setupNetworkAndServer();

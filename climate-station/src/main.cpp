@@ -96,6 +96,10 @@ void setup() {
   setupPrometheusClient();
   initESPNowClient();
 
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP("SomeESP", "nothingyoucanfindout", 1, 1);
+  WiFi.printDiag(Serial);
+
   // Start the DHT sensor
   dht.setup(PIN_DHT, DHTesp::DHT11);
 

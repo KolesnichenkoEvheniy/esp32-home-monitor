@@ -39,7 +39,6 @@ bool initWiFi() {
   }
 
   // Set the device as a Station and Soft Access Point simultaneously
-  WiFi.mode(WIFI_AP_STA);
   Serial.println(WiFi.localIP());
   Serial.print("Wi-Fi Channel: ");
   Serial.println(WiFi.channel());
@@ -55,15 +54,6 @@ String processor(const String& var) {
   }
   return String();
 }
-
-
-// Structure example to receive data
-// Must match the sender structure
-typedef struct struct_message {
-  int id;
-  float soil;
-  unsigned int readingId;
-} struct_message;
 
 struct_message incomingReadings;
 
