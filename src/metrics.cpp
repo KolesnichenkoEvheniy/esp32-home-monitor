@@ -16,6 +16,8 @@ TimeSeries ts5(5, "eco2_ppm",  "{monitoring_type=\"room_comfort\",board_type=\"e
 TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 TimeSeries ts7(5, "ambient_light_lux",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 
+unsigned int loopCounter = 0;
+
 // Function to set up Prometheus client
 void setupPrometheusClient() {
   Serial.println("Setting up client...");
@@ -64,4 +66,53 @@ void setupPrometheusClient() {
   // req.setDebug(Serial);  // Remove this line to disable debug logging of the write request serialization and compression.
 
   Serial.println("Prometheus transport configured successfully.");
+}
+
+void logMeasurements(ClimateMeasurements measurements) {
+  int64_t time = transport.getTimeMillis();
+
+  if (loopCounter >= 5) {
+      Serial.println("Sending samples...");
+      //Send
+      loopCounter = 0;
+      PromClient::SendResult res = client.send(req);
+      if (!res == PromClient::SendResult::SUCCESS) {
+          Serial.println(client.errmsg);
+      }
+      Serial.println("Samples sent.");
+      
+      // Reset batches after a succesful send.
+      ts1.resetSamples();
+      ts2.resetSamples();
+      ts3.resetSamples();
+      ts4.resetSamples();
+      ts5.resetSamples();
+      ts6.resetSamples();
+      ts7.resetSamples();
+
+      return;
+    }
+    
+    if (!ts1.addSample(time, measurements.temperature)) {
+      Serial.println(ts1.errmsg);
+    }
+    if (!ts2.addSample(time, measurements.humidity)) {
+      Serial.println(ts2.errmsg);
+    }
+    if (!ts3.addSample(time, measurements.hic)) {
+      Serial.println(ts3.errmsg);
+    }
+    if (!ts4.addSample(time, WiFi.RSSI())) {
+      Serial.println(ts4.errmsg);
+    }
+    if (!ts5.addSample(time, measurements.eco2)) {
+      Serial.println(ts5.errmsg);
+    }
+    if (!ts6.addSample(time, measurements.tvoc)) {
+      Serial.println(ts6.errmsg);
+    }
+    if (!ts7.addSample(time, measurements.ambient_light_lux)) {
+      Serial.println(ts7.errmsg);
+    }
+    loopCounter++;
 }

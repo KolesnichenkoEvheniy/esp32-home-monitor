@@ -2,6 +2,7 @@
 #define __METRICS_H__
 #include <Arduino.h>
 #include <PrometheusArduino.h>
+#include "measurements.h"
 #include "certificates.h"
 #include "config.h"
 
@@ -22,5 +23,7 @@ extern TimeSeries ts6;
 extern TimeSeries ts7;
 
 void setupPrometheusClient();
+
+void logMeasurements(ClimateMeasurements measurements);
 
 #endif // __METRICS_H__

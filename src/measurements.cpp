@@ -1,7 +1,5 @@
 #include "measurements.h"
 
-unsigned int loopCounter = 0;
-
 ClimateMeasurements getFreshMeasurements() {
     ClimateMeasurements measurements;
 
@@ -42,86 +40,4 @@ ClimateMeasurements getFreshMeasurements() {
     measurements.ambient_light_lux = ambientLightLux;
 
     return measurements;
-}
-
-void PerformMeasurements( void * pvParameters ){
-  Serial.println("Task2 running on core " + String(xPortGetCoreID()));
-
-  for(;;){
-    if(showDebugLight == true) {
-      digitalWrite(PIN_LED, HIGH);
-    }
-
-    int64_t time;
-    time = transport.getTimeMillis();
-
-    ClimateMeasurements freshMeasurements = getFreshMeasurements();
-
-    Serial.println("TEMP6000 Sensor readings: Lux=" + String(freshMeasurements.ambient_light_lux));
-
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(freshMeasurements.humidity) || isnan(freshMeasurements.temperature) || isnan(freshMeasurements.eco2) || isnan(freshMeasurements.tvoc)) {
-      Serial.println(F("Failed to read measurements!"));
-      return;
-    }
-
-    Serial.println("Temperature: " + String(freshMeasurements.temperature) +" Humidity: " + String(freshMeasurements.humidity));
-    Serial.println("CO2: "+String(freshMeasurements.eco2)+"ppm, TVOC: "+String(freshMeasurements.tvoc)+"ppb");
-
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("CO2:" + String((int)freshMeasurements.eco2)+" TCO:"+String((int)freshMeasurements.tvoc));
-    lcd.setCursor(0,1);
-    lcd.print("T:" + String(freshMeasurements.temperature) + "H:" + String((int)freshMeasurements.humidity) + "L:" + String(freshMeasurements.ambient_light_lux));
-
-    if (loopCounter >= 5) {
-      Serial.println("Sending samples...");
-      //Send
-      loopCounter = 0;
-      PromClient::SendResult res = client.send(req);
-      if (!res == PromClient::SendResult::SUCCESS) {
-          Serial.println(client.errmsg);
-      }
-      Serial.println("Samples sent.");
-      
-      // Reset batches after a succesful send.
-      ts1.resetSamples();
-      ts2.resetSamples();
-      ts3.resetSamples();
-      ts4.resetSamples();
-      ts5.resetSamples();
-      ts6.resetSamples();
-      ts7.resetSamples();
-    } else {
-      if (!ts1.addSample(time, freshMeasurements.temperature)) {
-        Serial.println(ts1.errmsg);
-      }
-      if (!ts2.addSample(time, freshMeasurements.humidity)) {
-        Serial.println(ts2.errmsg);
-      }
-      if (!ts3.addSample(time, freshMeasurements.hic)) {
-        Serial.println(ts3.errmsg);
-      }
-      if (!ts4.addSample(time, WiFi.RSSI())) {
-        Serial.println(ts4.errmsg);
-      }
-      if (!ts5.addSample(time, freshMeasurements.eco2)) {
-        Serial.println(ts5.errmsg);
-      }
-      if (!ts6.addSample(time, freshMeasurements.tvoc)) {
-        Serial.println(ts6.errmsg);
-      }
-      if (!ts7.addSample(time, freshMeasurements.ambient_light_lux)) {
-        Serial.println(ts7.errmsg);
-      }
-      loopCounter++;
-    }
-
-    if(showDebugLight == true) {
-      vTaskDelay(300 / portTICK_PERIOD_MS);
-    }
-    digitalWrite(PIN_LED, LOW);
-    // wait INTERVAL seconds and then do it again
-    vTaskDelay(refreshInterval * 1000 / portTICK_PERIOD_MS);
-  }
 }

@@ -2,7 +2,7 @@
 #define __MEASUREMENTS_H__
 #include <Arduino.h>
 #include "globals.h"
-#include "metrics.h"
+
 
 typedef struct ClimateMeasurements {
   float humidity;
@@ -12,8 +12,6 @@ typedef struct ClimateMeasurements {
   float eco2;
   float tvoc;
 } ClimateMeasurements;
-
-void PerformMeasurements( void * pvParameters );
 
 ClimateMeasurements getFreshMeasurements();
 

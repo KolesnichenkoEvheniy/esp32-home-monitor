@@ -27,4 +27,9 @@ extern bool showDebugLight;
 
 float averageAdcValue(int pin, int n);
 
+void blink(int count);
+void toggleDebug(bool newDebugState);
+
+void scani2c();
+
 #endif // __GLOBALS_H__

@@ -11,30 +11,10 @@
 TimerHandle_t tmr;
 int timerId = 1;
 
-void blink(int count = 2) {
-  for(int i = 0; i < count; i++) {
-    digitalWrite(PIN_LED, LOW);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
-    digitalWrite(PIN_LED, HIGH);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
-    digitalWrite(PIN_LED, LOW);
-  }
-}
-
-void toggleDebug( bool newDebugState ) {
-  showDebugLight = newDebugState;
-
-  lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
-  lcd.noCursor();
-
-  Serial.println("The button is released, state: " + String(showDebugLight));
-  blink((showDebugLight == true) ? 3 : 2);
-}
-
-void ping( TimerHandle_t xTimer )
+void lcdTimerHandle( TimerHandle_t xTimer )
 {
   showDebugLight = false;
-  Serial.println("TIMER!");
+  Serial.println("LCD TIMER");
 
   lcd.setBacklight((showDebugLight == true) ? HIGH : LOW);
 }
@@ -51,7 +31,7 @@ void ListenButton( void * pvParameters ){
         if (showDebugLight)
         {
           Serial.println("Setting timer...");
-          tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(DEBUG_OFF_TIMER * 1000), pdFALSE, ( void * )timerId, &ping);
+          tmr = xTimerCreate("MyTimer", pdMS_TO_TICKS(DEBUG_OFF_TIMER * 1000), pdFALSE, ( void * )timerId, &lcdTimerHandle);
           if( xTimerStart(tmr, 10 ) != pdPASS ) {
             Serial.println("Timer start error");
           }
@@ -66,33 +46,40 @@ void ListenButton( void * pvParameters ){
   }
 }
 
-void scani2c() {
-  byte error, address;
-  int nDevices;
-  Serial.println("Searching for I2C devices...");
-  nDevices = 0;
-  for(address = 1; address < 127; address++ ) {
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.print("I2C device found at address 0x");
-      if (address < 16) {
-        Serial.print("0");
-      }
-      Serial.println(address,HEX);
-      nDevices++;
-    } else if (error==4) {
-      Serial.print("Unknow error at address 0x");
-      if (address<16) {
-        Serial.print("0");
-      }
-      Serial.println(address,HEX);
-    }    
-  }
-  if (nDevices == 0) {
-    Serial.println("No I2C devices found\n");
-  } else {
-    Serial.println("done\n");
+void measurementsLoop( void * pvParameters ){
+  Serial.println("Task2 running on core " + String(xPortGetCoreID()));
+
+  for(;;){
+    if(showDebugLight == true) {
+      digitalWrite(PIN_LED, HIGH);
+    }
+
+    ClimateMeasurements freshMeasurements = getFreshMeasurements();
+
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(freshMeasurements.humidity) || isnan(freshMeasurements.temperature) || isnan(freshMeasurements.eco2) || isnan(freshMeasurements.tvoc)) {
+      Serial.println(F("Failed to read measurements!"));
+      return;
+    }
+
+    Serial.println("Temperature: " + String(freshMeasurements.temperature) +" Humidity: " + String(freshMeasurements.humidity));
+    Serial.println("CO2: "+String(freshMeasurements.eco2)+"ppm, TVOC: "+String(freshMeasurements.tvoc)+"ppb");
+    Serial.println("TEMP6000 Sensor readings: Lux=" + String(freshMeasurements.ambient_light_lux));
+
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("CO2:" + String((int)freshMeasurements.eco2)+" TCO:"+String((int)freshMeasurements.tvoc));
+    lcd.setCursor(0,1);
+    lcd.print("T:" + String(freshMeasurements.temperature) + "H:" + String((int)freshMeasurements.humidity) + "L:" + String(freshMeasurements.ambient_light_lux));
+
+    logMeasurements(freshMeasurements);
+
+    if(showDebugLight == true) {
+      vTaskDelay(300 / portTICK_PERIOD_MS);
+    }
+    digitalWrite(PIN_LED, LOW);
+    // wait INTERVAL seconds and then do it again
+    vTaskDelay(refreshInterval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -134,7 +121,7 @@ void setup() {
   
   Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
-  xTaskCreate(PerformMeasurements, "PerformMeasurements", 10000, NULL, 2, NULL);
+  xTaskCreate(measurementsLoop, "PerformMeasurements", 10000, NULL, 2, NULL);
 
   Serial.print("Free Mem After Setup: ");
   Serial.println(freeMemory());
