@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "soil-sensor",
+			"path": "soil-sensor"
+		},
+		{
+			"name": "climate-station",
+			"path": "climate-station"
+		}
+	],
+	"settings": {}
+}
