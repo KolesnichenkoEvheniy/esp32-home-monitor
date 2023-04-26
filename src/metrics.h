@@ -24,6 +24,6 @@ extern TimeSeries ts7;
 
 void setupPrometheusClient();
 
-void logMeasurements(ClimateMeasurements measurements);
+void logMeasurements(ClimateMeasurements &measurements);
 
 #endif // __METRICS_H__

@@ -68,7 +68,7 @@ void setupPrometheusClient() {
   Serial.println("Prometheus transport configured successfully.");
 }
 
-void logMeasurements(ClimateMeasurements measurements) {
+void logMeasurements(ClimateMeasurements &measurements) {
   int64_t time = transport.getTimeMillis();
 
   if (loopCounter >= 5) {

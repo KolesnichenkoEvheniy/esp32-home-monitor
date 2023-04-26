@@ -15,15 +15,7 @@ bool setupNetworkAndServer();
 
 void initESPNowClient();
 
-extern String ssid;
-extern String pass;
-
 // Create AsyncWebServer object on port 80
 extern AsyncWebServer server;
-
-// Search for parameter in HTTP POST request
-extern const char* PARAM_SSID;
-extern const char* PARAM_PASSWORD;
-extern const char* PARAM_INTERVAL;
 
 #endif // __NETWORK_H__
