@@ -7,6 +7,9 @@
 		{
 			"name": "soil-sensor",
 			"path": "soil-sensor"
+		},
+		{
+			"path": "."
 		}
 	],
 	"settings": {}
