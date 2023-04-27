@@ -68,12 +68,12 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
   
   Serial.printf("Board ID %u: %u bytes\n", incomingReadings.id, len);
-  Serial.printf("SOIl value: %4.2f \n", incomingReadings.soil);
-
-  Serial.printf("readingID value: %d \n", incomingReadings.readingId);
   Serial.println();
 
-  // write to global variable for loop to send?
+  SoilMoistureMeasurements measurements;
+  measurements.boardId = incomingReadings.id;
+  measurements.soilMoisturePercent = incomingReadings.soil;
+  logSoilMoistureMetrics(&measurements);
 }
 
 void initESPNowClient() {

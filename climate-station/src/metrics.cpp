@@ -6,6 +6,7 @@ PromClient client(transport);
 
 // Create a write request for 4 series (when changing update buffers used to serialize the data)
 WriteRequest req(7, 512 * 7);
+WriteRequest externalMetricsRequest(1, 512 * 1);
 
 // Define a TimeSeries which can hold up to 5 samples, has a name of `temperature/humidity/...` and uses the above labels of which there are 2
 TimeSeries ts1(5, "temperature_celsius", "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
@@ -115,4 +116,26 @@ void logMeasurementMetrics() {
       Serial.println(ts7.errmsg);
     }
     loopCounter++;
+}
+
+void logSoilMoistureMetrics(SoilMoistureMeasurements *measurements) {
+  int64_t time = transport.getTimeMillis();
+
+  String LabelsString("{monitoring_type=\"room_comfort\", board_id=\"" + String(measurements->boardId) + "\"}");
+  TimeSeries externalMetric(1, "soil_moisture_percent", LabelsString.c_str());
+
+  externalMetricsRequest.addTimeSeries(externalMetric);
+
+  if (!externalMetric.addSample(time, measurements->soilMoisturePercent)) {
+    Serial.println(externalMetric.errmsg);
+  }
+
+  Serial.println("Sending samples...");
+  //Send
+  loopCounter = 0;
+  PromClient::SendResult res = client.send(req);
+  if (!res == PromClient::SendResult::SUCCESS) {
+      Serial.println(client.errmsg);
+  }
+  Serial.println("Samples sent.");
 }

@@ -2,8 +2,10 @@
 #define __NETWORK_H__
 #include <Arduino.h>
 #include "globals.h"
-#include "files.h"
 #include "config.h"
+#include "files.h"
+#include "metrics.h"
+#include "measurements.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <esp_now.h>

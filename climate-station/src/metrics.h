@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <PrometheusArduino.h>
 #include "measurements.h"
+// #include "network.h"
 #include "certificates.h"
 #include "metrics.h"
 #include "config.h"
@@ -26,5 +27,12 @@ extern TimeSeries ts7;
 void setupPrometheusClient();
 
 void logMeasurementMetrics();
+
+typedef struct SoilMoistureMeasurements {
+  unsigned int boardId;
+  unsigned int soilMoisturePercent;
+} SoilMoistureMeasurements;
+
+void logSoilMoistureMetrics(SoilMoistureMeasurements *measurements);
 
 #endif // __METRICS_H__
