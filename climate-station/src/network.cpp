@@ -51,6 +51,14 @@ bool initWiFi() {
 String processor(const String& var) {
   if(var == "INTERVAL") {
     return String(refreshInterval);
+  } else if(var == "TEMPERATURE"){
+    return String(measurements.temperature) + " C";
+  } else if(var == "HUMIDITY"){
+    return String(measurements.humidity) + " %";
+  } else if(var == "CO2"){
+    return String(measurements.eco2) + " ppm";
+  } else if(var == "TVOC"){
+    return String(measurements.tvoc) + "";
   }
   return String();
 }
