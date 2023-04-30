@@ -11,7 +11,7 @@ Generic_LM75 temperature(TEMRATURE_LM75_ADDR);
 
 LiquidCrystal_I2C lcd(LCD_ADDR,16,2);
 
-int refreshInterval = 30;
+unsigned int refreshInterval = 30;
 
 unsigned long previousMillis = 0;
 

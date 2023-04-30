@@ -1,7 +1,7 @@
-#include <esp_now.h>
-#include <esp_wifi.h>
+
 #include <WiFi.h>
 #include "config.h"
+#include "network.h"
 
 // Structure example to receive data
 // Must match the sender structure
@@ -19,16 +19,7 @@ const long interval = 5000;        // Interval at which to publish sensor readin
 
 unsigned int readingId = 0;
 
-int32_t getWiFiChannel(const char *ssid) {
-  if (int32_t n = WiFi.scanNetworks()) {
-      for (uint8_t i=0; i<n; i++) {
-          if (!strcmp(ssid, WiFi.SSID(i).c_str())) {
-              return WiFi.channel(i);
-          }
-      }
-  }
-  return 0;
-}
+
 
 float sensorReadings() {
   return 123.0;
@@ -43,43 +34,14 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup() {
   //Init Serial Monitor
   Serial.begin(115200);
+
+  initSPIFFS();
+
+  if (!setupNetworkAndServer()) {
+    return;
+  }
  
-  // Set device as a Wi-Fi Station and set channel
-  WiFi.mode(WIFI_STA);
-
-  int32_t channel = getWiFiChannel(WIFI_SSID);
-
-  Serial.println("WIFI Channel: " + String(channel));
-
-  WiFi.printDiag(Serial); // Uncomment to verify channel number before
-  esp_wifi_set_promiscuous(true);
-  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-  esp_wifi_set_promiscuous(false);
-  WiFi.printDiag(Serial); // Uncomment to verify channel change after
-
-  //Init ESP-NOW
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
-  esp_wifi_start();
-  esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_54M);
-
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
-  
-  //Register peer
-  esp_now_peer_info_t peerInfo;
-  memset(&peerInfo, 0, sizeof(peerInfo));
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.encrypt = false;
-  
-  //Add peer        
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    return;
-  }
+  /////
 }
  
 void loop() {
