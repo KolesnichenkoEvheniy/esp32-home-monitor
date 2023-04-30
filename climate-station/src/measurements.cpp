@@ -12,7 +12,7 @@ void performFreshMeasurements() {
 
     float hum = newValues.humidity;
     float cels = temperature.readTemperatureC();
-    float eCO2, tvoc;
+    float eCO2 = 0, tvoc = 0;
 
     // Compute heat index in Celsius (isFahreheit = false)
     float hic = dht.computeHeatIndex(cels, hum, false);

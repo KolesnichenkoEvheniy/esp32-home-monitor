@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <PrometheusArduino.h>
 #include "measurements.h"
-// #include "network.h"
+#include <WiFi.h>
 #include "certificates.h"
 #include "metrics.h"
 #include "config.h"

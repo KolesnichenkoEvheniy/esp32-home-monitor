@@ -15,7 +15,6 @@ typedef struct struct_message {
 struct_message myData;
 
 unsigned long previousMillis = 0;   // Stores last time temperature was published
-const long interval = 5000;        // Interval at which to publish sensor readings
 
 unsigned int readingId = 0;
 
@@ -31,13 +30,27 @@ int32_t getWiFiChannel(const char *ssid) {
 }
 
 float sensorReadings() {
-  return 123.0;
+  int soilMoistureValue = analogRead(SOIL_MOISURE_SENSOR_PIN);
+  Serial.println("Sensor reasing: " + String(soilMoistureValue));
+  return map(soilMoistureValue, SOIL_DRY, SOIL_WET, 0, 100);
 }
 
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+
+void parseBytes(const char* str, char sep, byte* bytes, int maxBytes, int base) {
+    for (int i = 0; i < maxBytes; i++) {
+        bytes[i] = strtoul(str, NULL, base);  // Convert byte
+        str = strchr(str, sep);               // Find next separator
+        if (str == NULL || *str == '\0') {
+            break;                            // No more separators, exit
+        }
+        str++;                                // Point to next character after separator
+    }
 }
  
 void setup() {
@@ -48,6 +61,12 @@ void setup() {
   WiFi.mode(WIFI_STA);
 
   int32_t channel = getWiFiChannel(WIFI_SSID);
+
+  pinMode(SOIL_MOISURE_SENSOR_PIN, INPUT);
+
+  // parseBytes(RECIEVER_MAC_ADDRESS, '-', broadcastAddress, 6, HEX);
+  // broadcastAddress = getServerMacAddress(RECIEVER_MAC_ADDRESS);
+
 
   Serial.println("WIFI Channel: " + String(channel));
 
@@ -84,12 +103,16 @@ void setup() {
  
 void loop() {
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousMillis >= REFRESH_INTERVAL * 1000) {
     // Save the last time a new reading was published
     previousMillis = currentMillis;
+
+    float currentReadings = sensorReadings();
+    Serial.println("Current moisture %: " + String(currentReadings));
+
     //Set values to send
     myData.id = BOARD_ID;
-    myData.soil = sensorReadings();
+    myData.soil = currentReadings;
     myData.readingId = readingId++;
      
     //Send message via ESP-NOW

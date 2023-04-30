@@ -122,7 +122,11 @@ void logSoilMoistureMetrics(SoilMoistureMeasurements *measurements) {
   int64_t time = transport.getTimeMillis();
 
   String LabelsString("{monitoring_type=\"room_comfort\", board_id=\"" + String(measurements->boardId) + "\"}");
+
   TimeSeries externalMetric(1, "soil_moisture_percent", LabelsString.c_str());
+
+  Serial.println("SoilMoisture: labels = " + LabelsString);
+  Serial.println("SoilMoisture: percent = " + String(measurements->soilMoisturePercent));
 
   externalMetricsRequest.addTimeSeries(externalMetric);
 
@@ -130,12 +134,12 @@ void logSoilMoistureMetrics(SoilMoistureMeasurements *measurements) {
     Serial.println(externalMetric.errmsg);
   }
 
-  Serial.println("Sending samples...");
+  Serial.println("SoilMoisture: Sending samples...");
   //Send
-  loopCounter = 0;
-  PromClient::SendResult res = client.send(req);
+  PromClient::SendResult res = client.send(externalMetricsRequest);
   if (!res == PromClient::SendResult::SUCCESS) {
       Serial.println(client.errmsg);
   }
-  Serial.println("Samples sent.");
+  Serial.println("SoilMoisture: Samples sent.");
+  externalMetric.resetSamples();
 }

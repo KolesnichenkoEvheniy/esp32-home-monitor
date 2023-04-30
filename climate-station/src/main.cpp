@@ -94,7 +94,6 @@ void setup() {
     return;
   }
   setupPrometheusClient();
-  initESPNowClient();
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP("SomeESP", "nothingyoucanfindout", 1, 1);
@@ -125,6 +124,8 @@ void setup() {
   Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
   xTaskCreate(measurementsLoop, "PerformMeasurements", 10000, NULL, 2, NULL);
+
+  initESPNowClient();
 
   Serial.print("Free Mem After Setup: ");
   Serial.println(freeMemory());
