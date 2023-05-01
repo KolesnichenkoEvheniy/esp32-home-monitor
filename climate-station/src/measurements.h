@@ -11,6 +11,7 @@ typedef struct ClimateMeasurements {
   unsigned int ambient_light_lux;
   float eco2;
   float tvoc;
+  int soil_moisture_percent;
 } ClimateMeasurements;
 
 extern ClimateMeasurements measurements;

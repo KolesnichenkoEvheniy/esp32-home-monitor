@@ -5,8 +5,8 @@ PromLokiTransport transport;
 PromClient client(transport);
 
 // Create a write request for 4 series (when changing update buffers used to serialize the data)
-WriteRequest req(7, 512 * 7);
-WriteRequest externalMetricsRequest(1, 512 * 1);
+WriteRequest req(8, 512 * 8);
+
 
 // Define a TimeSeries which can hold up to 5 samples, has a name of `temperature/humidity/...` and uses the above labels of which there are 2
 TimeSeries ts1(5, "temperature_celsius", "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
@@ -16,6 +16,8 @@ TimeSeries ts4(5, "wifi_rssi",  "{monitoring_type=\"room_comfort\",board_type=\"
 TimeSeries ts5(5, "eco2_ppm",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 TimeSeries ts6(5, "tvoc_ppb",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 TimeSeries ts7(5, "ambient_light_lux",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
+
+TimeSeries soilMoistureTS(5, "soil_moisture_percent",  "{monitoring_type=\"room_comfort\",board_type=\"esp32_devkit1\",room=\"bedroom\"}");
 
 unsigned int loopCounter = 0;
 
@@ -37,7 +39,7 @@ void setupPrometheusClient() {
   transport.setNtpServer((char*)"time.google.com");
   // transport.setWifiSsid(WIFI_SSID);
   // transport.setWifiPass(WIFI_PASSWORD);
-  transport.setDebug(Serial);  // Remove this line to disable debug logging of the client.
+  // transport.setDebug(Serial);  // Remove this line to disable debug logging of the client.
   if (!transport.begin()) {
       Serial.println(transport.errmsg);
       while (true) {};
@@ -64,12 +66,13 @@ void setupPrometheusClient() {
   req.addTimeSeries(ts5);
   req.addTimeSeries(ts6);
   req.addTimeSeries(ts7);
+  req.addTimeSeries(soilMoistureTS);
   // req.setDebug(Serial);  // Remove this line to disable debug logging of the write request serialization and compression.
 
   Serial.println("Prometheus transport configured successfully.");
 }
 
-void logMeasurementMetrics() {
+void logMeasurementMetrics() {  
   int64_t time = transport.getTimeMillis();
 
   if (loopCounter >= 5) {
@@ -78,8 +81,9 @@ void logMeasurementMetrics() {
       loopCounter = 0;
       PromClient::SendResult res = client.send(req);
       if (!res == PromClient::SendResult::SUCCESS) {
-          Serial.println(client.errmsg);
+        Serial.println(client.errmsg);
       }
+
       Serial.println("Samples sent.");
       
       // Reset batches after a succesful send.
@@ -90,6 +94,7 @@ void logMeasurementMetrics() {
       ts5.resetSamples();
       ts6.resetSamples();
       ts7.resetSamples();
+      soilMoistureTS.resetSamples();
 
       return;
     }
@@ -115,31 +120,12 @@ void logMeasurementMetrics() {
     if (!ts7.addSample(time, measurements.ambient_light_lux)) {
       Serial.println(ts7.errmsg);
     }
+
+    Serial.println("Soil moisture sample added: " + String(measurements.soil_moisture_percent));
+    if (!soilMoistureTS.addSample(time, measurements.soil_moisture_percent)){
+      Serial.println(soilMoistureTS.errmsg);
+    }
+    measurements.soil_moisture_percent = 0;
+
     loopCounter++;
-}
-
-void logSoilMoistureMetrics(SoilMoistureMeasurements *measurements) {
-  int64_t time = transport.getTimeMillis();
-
-  String LabelsString("{monitoring_type=\"room_comfort\", board_id=\"" + String(measurements->boardId) + "\"}");
-
-  TimeSeries externalMetric(1, "soil_moisture_percent", LabelsString.c_str());
-
-  Serial.println("SoilMoisture: labels = " + LabelsString);
-  Serial.println("SoilMoisture: percent = " + String(measurements->soilMoisturePercent));
-
-  externalMetricsRequest.addTimeSeries(externalMetric);
-
-  if (!externalMetric.addSample(time, measurements->soilMoisturePercent)) {
-    Serial.println(externalMetric.errmsg);
-  }
-
-  Serial.println("SoilMoisture: Sending samples...");
-  //Send
-  PromClient::SendResult res = client.send(externalMetricsRequest);
-  if (!res == PromClient::SendResult::SUCCESS) {
-      Serial.println(client.errmsg);
-  }
-  Serial.println("SoilMoisture: Samples sent.");
-  externalMetric.resetSamples();
 }
