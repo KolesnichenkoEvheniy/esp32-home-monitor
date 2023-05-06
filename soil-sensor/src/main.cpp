@@ -106,8 +106,8 @@ void setup() {
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
 
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-  Serial.println("Configured all RTC Peripherals to be powered down in sleep");
+  // esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+  // Serial.println("Configured all RTC Peripherals to be powered down in sleep");
 
   //Print the wakeup reason for ESP32
   print_wakeup_reason();
