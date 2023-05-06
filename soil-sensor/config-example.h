@@ -9,9 +9,6 @@ uint8_t broadcastAddress[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX};
 
 #define WIFI_SSID "********"
 
-// Interval at which to publish sensor readings
-#define REFRESH_INTERVAL 5
-
 // ESP32 pin GPIO that connects to AOUT pin of moisture sensor
 #define SOIL_MOISURE_SENSOR_PIN 4
 
