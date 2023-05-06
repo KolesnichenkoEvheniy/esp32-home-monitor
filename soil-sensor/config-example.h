@@ -14,3 +14,9 @@ uint8_t broadcastAddress[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX};
 
 // ESP32 pin GPIO that connects to AOUT pin of moisture sensor
 #define SOIL_MOISURE_SENSOR_PIN 4
+
+#define SOIL_WET 929
+#define SOIL_DRY 2553
+
+// seconds
+#define TIME_TO_SLEEP 30 * 60

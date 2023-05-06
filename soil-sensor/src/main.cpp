@@ -3,6 +3,10 @@
 #include <WiFi.h>
 #include "config.h"
 
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+
+RTC_DATA_ATTR int bootCount = 0;
+
 // Structure example to receive data
 // Must match the sender structure
 typedef struct struct_message {
@@ -14,10 +18,6 @@ typedef struct struct_message {
 //Create a struct_message called myData
 struct_message myData;
 
-unsigned long previousMillis = 0;   // Stores last time temperature was published
-
-unsigned int readingId = 0;
-
 int32_t getWiFiChannel(const char *ssid) {
   if (int32_t n = WiFi.scanNetworks()) {
       for (uint8_t i=0; i<n; i++) {
@@ -27,6 +27,26 @@ int32_t getWiFiChannel(const char *ssid) {
       }
   }
   return 0;
+}
+
+/*
+Method to print the reason by which ESP32
+has been awaken from sleep
+*/
+void print_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason)
+  {
+    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
+    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+  }
 }
 
 float sensorReadings() {
@@ -53,9 +73,44 @@ void parseBytes(const char* str, char sep, byte* bytes, int maxBytes, int base) 
     }
 }
  
+void sendMeasurements() {
+  float currentReadings = sensorReadings();
+  Serial.println("Current moisture %: " + String(currentReadings));
+
+  //Set values to send
+  myData.id = BOARD_ID;
+  myData.soil = currentReadings;
+  myData.readingId = bootCount;
+    
+  //Send message via ESP-NOW
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  if (result == ESP_OK) {
+    Serial.println("Sent with success");
+  } else {
+    Serial.println("Error sending the data");
+  }
+}
+
 void setup() {
   //Init Serial Monitor
   Serial.begin(115200);
+
+  //Increment boot number and print it every reboot
+  ++bootCount;
+  Serial.println("Boot number: " + String(bootCount));
+
+  /*
+  First we configure the wake up source
+  We set our ESP32 to wake up every 5 seconds
+  */
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
+
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+  Serial.println("Configured all RTC Peripherals to be powered down in sleep");
+
+  //Print the wakeup reason for ESP32
+  print_wakeup_reason();
  
   // Set device as a Wi-Fi Station and set channel
   WiFi.mode(WIFI_STA);
@@ -99,29 +154,14 @@ void setup() {
     Serial.println("Failed to add peer");
     return;
   }
+
+  sendMeasurements();
+
+  Serial.println("Going to sleep now");
+  delay(1000);
+  Serial.flush(); 
+  esp_deep_sleep_start();
 }
  
 void loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= REFRESH_INTERVAL * 1000) {
-    // Save the last time a new reading was published
-    previousMillis = currentMillis;
-
-    float currentReadings = sensorReadings();
-    Serial.println("Current moisture %: " + String(currentReadings));
-
-    //Set values to send
-    myData.id = BOARD_ID;
-    myData.soil = currentReadings;
-    myData.readingId = readingId++;
-     
-    //Send message via ESP-NOW
-    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
-    if (result == ESP_OK) {
-      Serial.println("Sent with success");
-    }
-    else {
-      Serial.println("Error sending the data");
-    }
-  }
 }
