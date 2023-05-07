@@ -124,6 +124,15 @@ void setup() {
   Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
   xTaskCreate(measurementsLoop, "PerformMeasurements", 10000, NULL, 2, NULL);
+  xTaskCreatePinnedToCore(
+    keepWiFiAlive,
+    "Keep WIFI alive",
+    5000,
+    NULL,
+    1, 
+    NULL,
+    CONFIG_ARDUINO_RUNNING_CORE
+  );
 
   initESPNowClient();
 

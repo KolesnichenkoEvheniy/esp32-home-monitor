@@ -1,5 +1,7 @@
 #include "network.h"
 
+#define WIFI_TIMEOUT_MS 10 * 1000
+
 const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
 
 String ssid;
@@ -92,6 +94,36 @@ void initESPNowClient() {
   // Once ESPNow is successfully Init, we will register for recv CB to
   // get recv packer info
   esp_now_register_recv_cb(OnDataRecv);
+}
+
+void keepWiFiAlive(void * parameter) {
+    for(;;){
+        if(WiFi.status() == WL_CONNECTED){
+            Serial.println("[WIFI] WiFI still connected.");
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        Serial.println("[WIFI] WiFi connection lost, re-connecting...");
+        WiFi.disconnect();
+        WiFi.reconnect();
+
+        unsigned long startAttemptTime = millis();
+
+        // Keep looping while we're not connected and haven't reached the timeout
+        while (WiFi.status() != WL_CONNECTED && 
+                millis() - startAttemptTime < WIFI_TIMEOUT_MS){}
+
+        // When we couldn't make a WiFi connection (or the timeout expired)
+        // sleep for a while and then retry.
+        if(WiFi.status() != WL_CONNECTED){
+            Serial.println("[WIFI] FAILED");
+            vTaskDelay(WIFI_TIMEOUT_MS / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        Serial.println("[WIFI] Connected: " + WiFi.localIP());
+    }
 }
 
 bool setupNetworkAndServer() {

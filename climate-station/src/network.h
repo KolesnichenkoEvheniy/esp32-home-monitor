@@ -25,6 +25,8 @@ bool setupNetworkAndServer();
 
 void initESPNowClient();
 
+void keepWiFiAlive(void * parameter);
+
 // Create AsyncWebServer object on port 80
 extern AsyncWebServer server;
 
