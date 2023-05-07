@@ -97,14 +97,30 @@ void initESPNowClient() {
 }
 
 void keepWiFiAlive(void * parameter) {
+    bool connectionFailed = false;
     for(;;){
         if(WiFi.status() == WL_CONNECTED){
             Serial.println("[WIFI] WiFI still connected.");
+
+            if (connectionFailed == true) {
+              Serial.println("[WIFI] re-connected.");
+              Serial.println("[WIFI] Resume measurements task loop...");
+              vTaskResume(measurementsTaskHandle);
+            }
+            
+            connectionFailed = false;
             vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
         Serial.println("[WIFI] WiFi connection lost, re-connecting...");
+
+        if (connectionFailed == false) {
+          Serial.println("[WIFI] Suspend measurements task loop untill WIFI reconnect...");
+          vTaskSuspend(measurementsTaskHandle);
+        }
+
+        connectionFailed = true;
         WiFi.disconnect();
         WiFi.reconnect();
 
@@ -121,8 +137,6 @@ void keepWiFiAlive(void * parameter) {
             vTaskDelay(WIFI_TIMEOUT_MS / portTICK_PERIOD_MS);
             continue;
         }
-
-        Serial.println("[WIFI] Connected: " + WiFi.localIP());
     }
 }
 

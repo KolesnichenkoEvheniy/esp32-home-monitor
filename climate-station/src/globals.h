@@ -20,6 +20,8 @@ extern LiquidCrystal_I2C lcd;
 
 extern int refreshInterval;
 
+extern TaskHandle_t measurementsTaskHandle;
+
 // Timer variables
 extern unsigned long previousMillis;
 

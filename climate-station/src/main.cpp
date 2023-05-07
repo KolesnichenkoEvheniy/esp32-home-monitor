@@ -123,7 +123,7 @@ void setup() {
   
   Serial.println("Creating tasks");
   xTaskCreate(ListenButton, "ListenButton", 10000, NULL, 1, NULL); 
-  xTaskCreate(measurementsLoop, "PerformMeasurements", 10000, NULL, 2, NULL);
+  xTaskCreate(measurementsLoop, "PerformMeasurements", 10000, NULL, 2, &measurementsTaskHandle);
   xTaskCreatePinnedToCore(
     keepWiFiAlive,
     "Keep WIFI alive",

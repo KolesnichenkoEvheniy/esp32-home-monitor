@@ -17,6 +17,8 @@ unsigned long previousMillis = 0;
 
 bool showDebugLight = false;
 
+TaskHandle_t measurementsTaskHandle = NULL;
+
 float averageAdcValue(int pin, int n = 5) {
   float sum = 0;
 
