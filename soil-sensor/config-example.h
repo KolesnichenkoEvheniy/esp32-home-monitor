@@ -3,8 +3,7 @@
 // Set your Board ID (ESP32 Sender #1 = BOARD_ID 1, ESP32 Sender #2 = BOARD_ID 2, etc)
 #define BOARD_ID 1
 
-//MAC Address of the receiver E0:5A:1B:A1:AC:24
-//#define RECIEVER_MAC_ADDRESS "E0:5A:1B:A1:AC:24"
+//MAC Address of the receiver
 uint8_t broadcastAddress[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX};
 
 #define WIFI_SSID "********"
